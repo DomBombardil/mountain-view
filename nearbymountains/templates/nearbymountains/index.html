@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Mountains</title>
+</head>
+<body>
+    <h1>Find Nearby Mountains</h1>
+
+    <form method="get">
+        <div>
+            <label for="location_query">Search by place:</label>
+            <input
+                type="text"
+                id="location_query"
+                name="location_query"
+                placeholder="e.g. 83301 Traunreut"
+                value="{{ searched_location }}"
+            >
+        </div>
+
+        <div>
+            <p>or use your current location:</p>
+            <button type="button" id="use-location-btn">Use my current location</button>
+        </div>
+
+        <input type="hidden" name="latitude" id="latitude" value="{{ latitude }}">
+        <input type="hidden" name="longitude" id="longitude" value="{{ longitude }}">
+
+        <div>
+            <label for="radius">Radius (km):</label>
+            <input
+                type="number"
+                id="radius"
+                name="radius"
+                min="1"
+                step="1"
+                value="{{ radius }}"
+            >
+        </div>
+
+        <button type="submit">Search</button>
+    </form>
+
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
+    {% if latitude and longitude %}
+        <p>
+            Search coordinates:
+            {{ latitude }}, {{ longitude }}
+        </p>
+    {% endif %}
+
+    <hr>
+
+    {% if mountains %}
+        <h2>Nearby mountains</h2>
+        <ul>
+            {% for mountain in mountains %}
+                <li>
+                    <strong>{{ mountain.name }}</strong>
+                    — {{ mountain.elevation }} m
+                    — {{ mountain.distance.km|floatformat:2 }} km away
+                </li>
+            {% endfor %}
+        </ul>
+    {% elif searched_location or latitude and longitude %}
+        <p>No mountains found within this radius.</p>
+    {% endif %}
+
+    <script>
+        const button = document.getElementById("use-location-btn");
+        const latitudeInput = document.getElementById("latitude");
+        const longitudeInput = document.getElementById("longitude");
+        const locationQueryInput = document.getElementById("location_query");
+
+        button.addEventListener("click", function () {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    latitudeInput.value = position.coords.latitude;
+                    longitudeInput.value = position.coords.longitude;
+
+                    // Clear typed search so the backend prefers browser coordinates
+                    locationQueryInput.value = "";
+                },
+                function () {
+                    alert("Unable to retrieve your location.");
+                }
+            );
+        });
+    </script>
+</body>
+</html>

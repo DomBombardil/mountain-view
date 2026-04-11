@@ -2,12 +2,77 @@ from django.shortcuts import render
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
+from django.http import JsonResponse
 
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 
 from .models import Mountain
 
+def mountain_map(request):
+    return render(request, "nearbymountains/map.html")
+
+def nearby_mountains_api(request):
+    latitude = request.GET.get("latitude")
+    longitude = request.GET.get("longitude")
+    radius = request.GET.get("radius", 50)
+
+    if not latitude or not longitude:
+        return JsonResponse(
+            {"error": "Latitude and longitude are required."},
+            status=400
+        )
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+        radius = float(radius)
+
+    except ValueError:
+        return JsonResponse(
+            {"error": "Latitude, longitude and radius must be numbers."},
+            status = 400
+        )
+    
+    if not (-90 <= latitude <= 90):
+        return JsonResponse(
+            {"error": "Latitude must be between -90 and 90."},
+            status = 400
+        )
+    if not (-180 <= longitude <= 180):
+        return JsonResponse(
+            {"error": "Longitude must be between -180 and 180."},
+            status = 400
+        )
+    if radius <= 0:
+        return JsonResponse(
+            {"error": "Radius must be greater than 0."},
+            status = 400
+        )
+
+    user_location = Point(longitude, latitude, srid=4326)
+
+    mountains = (
+        Mountain.objects.annotate(
+            distance=Distance("location", user_location)
+        )
+        .filter(location__distance_lte=(user_location, D(km=radius)))
+        .order_by("distance")[:20]
+    )
+
+    results = []
+    for mountain in mountains:
+        results.append(
+            {
+                "name": mountain.name,
+                "elevation": mountain.elevation,
+                "distance_km": round(mountain.distance.km, 2),
+                "latitude": mountain.location.y,
+                "longitude": mountain.location.x
+            }
+        )
+
+    return JsonResponse({"mountains": results})
 
 def mountain_search(request):
     mountains = []

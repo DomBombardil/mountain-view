@@ -1,0 +1,23 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    margin: 20px;
+}
+
+.controls {
+    margin: 20px;
+}
+
+#map {
+    height: 600px;
+    width: 100%;
+}
+
+.message {
+    margin: 20px;
+    color: #444;
+}

@@ -10,29 +10,34 @@
     <link rel="stylesheet" href="{% static 'nearbymountains/css/map.css' %}">
 </head>
 <body>
-    <h1>Nearby Mountains</h1>
+    <div class="layout">
+        <div id="sidebar" class="sidebar">
+            <h2>Nearby Mountains</h2>
+            <ul id="mountain-list"></ul>
+        </div>
 
-    <div class="controls">
-        <label for="radius">Radius (km):</label>
-        <input type="number" id="radius" value="50" min="1" step="1">
-        <button id="locate-btn">Use My Location</button>
+        <div class="controls">
+            <label for="radius">Radius (km):</label>
+            <input type="number" id="radius" value="50" min="1" step="1">
+            <button id="locate-btn">Use My Location</button>
+        </div>
+
+        <div id="message" class="message">
+            Click "Use My Location" to load nearby mountains.
+        </div>
+
+        <div id="map"></div>
+
+        <!-- Selected mountain section -->
+        <div id="selected-mountain" class="selected-mountain">
+            <h3>Selected Mountain</h3>
+            <p id ="selected-name">None</p>
+            <p id="selected-elevation"></p>
+            <p id="selected-distance"></p>
+        </div>
+
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        <script src="{% static 'nearbymountains/js/map.js' %}"></script>
     </div>
-
-    <div id="message" class="message">
-        Click "Use My Location" to load nearby mountains.
-    </div>
-
-    <div id="map"></div>
-
-    <!-- Selected mountain section -->
-    <div id="selected-mountain" class="selected-mountain">
-        <h3>Selected Mountain</h3>
-        <p id ="selected-name">None</p>
-        <p id="selected-elevation"></p>
-        <p id="selected-distance"></p>
-    </div>
-
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="{% static 'nearbymountains/js/map.js' %}"></script>
 </body>
 </html>

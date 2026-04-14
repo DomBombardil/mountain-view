@@ -1,6 +1,11 @@
 const messageEl = document.getElementById("message");
 const radiusInput = document.getElementById("radius");
 const locateBtn = document.getElementById("locate-btn");
+const selectedNameEl = document.getElementById("selected-name");
+const selectedElevationEl = document.getElementById("selected-elevation");
+const selectedDistanceEl = document.getElementById("selected-distance");
+
+let selectedMarker = null;
 
 const map = L.map("map").setView([47.8, 12.6], 9);
 
@@ -49,6 +54,17 @@ function loadNearbyMountains(latitude, longitude, radius) {
                         Elevation: ${mountain.elevation} m<br>
                         Distance: ${mountain.distance_km} km`
                     );
+                
+                marker.on("click", function() {
+                    if (selectedMarker) {
+                        selectedMarker.setOpacity(1);
+                    }
+                    marker.setOpacity(0.5);
+                    selectedMarker = marker;
+                    
+                    selectMountain(mountain);
+                    map.setView([mountain.latitude, mountain.longitude], 12);
+                });
             
                 mountainMarkers.push(marker);
             });
@@ -90,3 +106,9 @@ locateBtn.addEventListener("click", function() {
         }
     );
 });
+
+function selectMountain(mountain) {
+    selectedNameEl.textContent = mountain.name;
+    selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
+    selectedDistanceEl.textContent = `Distance ${mountain.distance} km`;
+}

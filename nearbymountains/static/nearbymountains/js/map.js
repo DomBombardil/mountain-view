@@ -4,6 +4,7 @@ const locateBtn = document.getElementById("locate-btn");
 const selectedNameEl = document.getElementById("selected-name");
 const selectedElevationEl = document.getElementById("selected-elevation");
 const selectedDistanceEl = document.getElementById("selected-distance");
+const mountainlistEl = document.getElementById("mountain-list");
 
 let selectedMarker = null;
 
@@ -22,6 +23,48 @@ function clearMountainMarkers() {
     });
 
     mountainMarkers = [];
+}
+
+function clearMountainList() {
+    mountainlistEl.innerHTML = "";
+}
+
+function setActiveListItem(selectedItem) {
+    const allitems = mountainlistEl.querySelectorAll("li");
+
+    allitems.forEach(function(item) {
+        item.classList.remove("active")
+    });
+
+    selectedItem.classList.add("active")
+}
+
+function renderMountainList(mountains, markerMap) {
+    clearMountainList();
+
+    mountains.forEach(function(mountain) {
+        const listItem = document.createElement("li");
+
+        listItem.innerHTML = ` 
+            <strong>${mountain.name}</strong><br>
+            Elevation: ${mountain.elevation} m<br>
+            Distance: ${mountain.distance_km} km
+            `;
+
+
+        listItem.addEventListener("click", function() {
+            selectMountain(mountain);
+            setActiveListItem(listItem);
+
+            const marker = markerMap.get(mountain.name);
+            if (marker) {
+                map.setView([mountain.latitude, mountain.longitude], 12);
+                marker.openPopup();
+            }
+        });
+
+        mountainlistEl.appendChild(listItem);
+    });
 }
 
 function loadNearbyMountains(latitude, longitude, radius) {
@@ -46,6 +89,8 @@ function loadNearbyMountains(latitude, longitude, radius) {
 
             messageEl.textContent = `Found ${data.mountains.length} nearby mountains.`;
 
+            const markerMap = new Map(); 
+
             data.mountains.forEach(function(mountain) {
                 const marker = L.marker([mountain.latitude, mountain.longitude])
                     .addTo(map)
@@ -56,20 +101,24 @@ function loadNearbyMountains(latitude, longitude, radius) {
                     );
                 
                 marker.on("click", function() {
-                    if (selectedMarker) {
-                        selectedMarker.setOpacity(1);
-                    }
-                    marker.setOpacity(0.5);
-                    selectedMarker = marker;
-                    
                     selectMountain(mountain);
-                    map.setView([mountain.latitude, mountain.longitude], 12);
+
+                    const listItems = mountainlistEl.querySelectorAll("li");
+                    listItems.forEach(function(item) {
+                        if (item.textContent.includes(mountain.name)) {
+                            setActiveListItem(item);
+                        }
+                    });
                 });
             
                 mountainMarkers.push(marker);
+                markerMap.set(mountain.name, marker);
             });
+
+            renderMountainList(data.mountains, markerMap);
         })
         .catch(function() {
+            console.error(error)
             messageEl.textContent = "Could not load mountain data.";
         });
 }
@@ -110,5 +159,5 @@ locateBtn.addEventListener("click", function() {
 function selectMountain(mountain) {
     selectedNameEl.textContent = mountain.name;
     selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
-    selectedDistanceEl.textContent = `Distance ${mountain.distance} km`;
+    selectedDistanceEl.textContent = `Distance ${mountain.distance_km} km`;
 }

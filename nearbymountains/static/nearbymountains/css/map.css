@@ -68,3 +68,20 @@ h1 {
     border-radius: 8px;
     background-color: #f9f9f9;
 }
+/* Input design */
+.controls input[type="text"] {
+    width: 260px;
+    margin-right: 10px;
+    padding: 6px;
+}
+
+.controls button {
+    margin-right: 10px;
+    padding: 6px 10px;
+}
+
+.controls input[type="number"] {
+    width: 80px;
+    margin-right: 10px;
+    padding: 6px;
+}

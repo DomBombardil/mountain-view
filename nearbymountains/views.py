@@ -75,6 +75,11 @@ def nearby_mountains_api(request):
     return JsonResponse({"mountains": results})
 
 def mountain_search(request):
+    """
+    LEGACY (server-rendered) view.
+    Kept for reference/testing.
+    Main app uses API endpoints + JS (map.html).
+    """
     mountains = []
     error_message = None
     searched_location = ""
@@ -151,3 +156,32 @@ def mountain_search(request):
     }
 
     return render(request, "nearbymountains/index.html", context)
+
+def geocode_location_api(request):
+    query = request.GET.get("query", "").strip()
+
+    if not query:
+        return JsonResponse({"error": "Location query is required."}, status=400)
+    
+    geolocator = Nominatim(user_agent="nearby-mountain-finder-1.0")
+
+    try:
+        location = geolocator.geocode(query, exactly_one=True, timeout=10)
+
+        if location is None:
+            return JsonResponse(
+                {"error": "Location not found. Try a more specific search."},
+                status=404
+            )
+        
+        return JsonResponse({
+            "latitude": location.latitude,
+            "longitude": location.longitude,
+            "display_name": location.address,
+        })
+
+    except (GeocoderTimedOut, GeocoderServiceError):
+        return JsonResponse(
+            {"error": "Geocoding service is temporarily unavailable. Please try again."},
+            status=503
+        )

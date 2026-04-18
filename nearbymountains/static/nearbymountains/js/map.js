@@ -25,6 +25,20 @@ function clearMountainMarkers() {
     mountainMarkers = [];
 }
 
+function fitMapToResults(latitude, longitude, mountains) {
+    const bounds = [];
+
+    bounds.push([latitude, longitude]);
+
+    mountains.forEach(function(mountain) {
+        bounds.push([mountain.latitude, mountain.longitude]);
+    });
+
+    map.fitBounds(bounds, {
+        padding: [40, 40]
+    });
+}
+
 function clearMountainList() {
     mountainlistEl.innerHTML = "";
 }
@@ -116,8 +130,9 @@ function loadNearbyMountains(latitude, longitude, radius) {
             });
 
             renderMountainList(data.mountains, markerMap);
+            fitMapToResults(latitude, longitude, data.mountains);
         })
-        .catch(function() {
+        .catch(function(error) {
             console.error(error)
             messageEl.textContent = "Could not load mountain data.";
         });

@@ -7,6 +7,10 @@ from django.http import JsonResponse
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 
+import os
+import requests
+from django.views.decorators.http import require_GET
+
 from .models import Mountain
 
 def mountain_map(request):
@@ -185,3 +189,47 @@ def geocode_location_api(request):
             {"error": "Geocoding service is temporarily unavailable. Please try again."},
             status=503
         )
+
+@require_GET
+def mountain_route_api(request):
+    start_lat = request.GET.get("start_lat")
+    start_lng = request.GET.get("start_lng")
+    end_lat = request.GET.get("end_lat")
+    end_lng = request.GET.get("end_lng")
+
+    if not all([start_lat, start_lng, end_lat, end_lng]):
+        return JsonResponse({"error": "Start and end coordinates are required"}, status=400)
+    
+    try:
+        start_lat = float(start_lat)
+        start_lng = float(start_lng)
+        end_lat = float(end_lat)
+        end_lng = float(end_lng)
+
+    except ValueError:
+        return JsonResponse({"error": "All coordinates must be valid numbers"}, status=400)
+    
+    api_key = os.environ.get("ORS_API_KEY")
+    if not api_key:
+        return JsonResponse({"error":"Routing API key is not configured."}, status=500)
+    
+    url = "https://api.openrouteservice.org/v2/directions/foot-hiking/geojson"
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "coordinates": [
+            [start_lng, start_lat], 
+            [end_lng, end_lat],
+        ]
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=20)
+        response.raise_for_status()
+        route_data = response.json()
+    except requests.RequestException:
+        return JsonResponse({"error": "Could not retrieve route data."}, status=502)
+    
+    return JsonResponse(route_data)

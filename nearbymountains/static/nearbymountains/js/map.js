@@ -181,7 +181,7 @@ function loadNearbyMountains(latitude, longitude, radius) {
             fitMapToResults(latitude, longitude, data.mountains);
         })
         .catch(function(error) {
-            console.error(error)
+            console.error(error);
             messageEl.textContent = "Could not load mountain data.";
         });
 }

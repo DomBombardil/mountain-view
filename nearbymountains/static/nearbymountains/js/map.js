@@ -84,6 +84,51 @@ function renderMountainList(mountains, markerMap) {
     });
 }
 
+function searchTypedLocation() {
+    const query = locationInput.value.trim();
+    const radius = radiusInput.value || 50;
+
+    if (!query) {
+        messageEl.textContent = "Please enter a location.";
+        return;
+    }
+
+    messageEl.textContent = "Searching for location...";
+
+    const url = `/api/geocode-location/?query=${encodeURIComponent(query)}`;
+
+    fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.error) {
+                messageEl.textContent = data.error;
+                return;
+            }
+
+            const latitude = data.latitude;
+            const longitude = data.longitude;
+
+            map.setView([latitude, longitude], 10);
+
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+
+            userMarker = L.marker([latitude, longitude])
+                .addTo(map)
+                .bindPopup(`Searched location: ${data.display_name}`)
+                .openPopup();
+
+                loadNearbyMountains(latitude, longitude, radius);
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not search for the typed location.";
+        });
+}
+
 function loadNearbyMountains(latitude, longitude, radius) {
     const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
 
@@ -142,13 +187,6 @@ function loadNearbyMountains(latitude, longitude, radius) {
 }
 
 // Event listeners.
-
-locateBtn.addEventListener("click", function() {
-    if (!navigator.geolocation) {
-        messageEl.textContent = "Geolocation is not suported by your browser.";
-        return;
-    }
-
 searchLocationBtn.addEventListener("click", function() {
     searchTypedLocation();
 });
@@ -158,6 +196,12 @@ locationInput.addEventListener("keydown", function(event) {
         searchTypedLocation();
     }
 });
+
+locateBtn.addEventListener("click", function() {
+    if (!navigator.geolocation) {
+        messageEl.textContent = "Geolocation is not supported by your browser.";
+        return;
+    }
 
     messageEl.textContent = "Getting your location...";
 
@@ -190,49 +234,4 @@ function selectMountain(mountain) {
     selectedNameEl.textContent = mountain.name;
     selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
     selectedDistanceEl.textContent = `Distance ${mountain.distance_km} km`;
-}
-
-function searchTypedLocation() {
-    const query = locationInput.value.trim();
-    const radius = radiusInput.value || 50;
-
-    if (!query) {
-        messageEl.textContent = "Please enter a location.";
-        return;
-    }
-
-    messageEl.textContent = "Searching for location...";
-
-    const url = `/api/geocode-location/?query=${encodeURIComponent(query)}`;
-
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.error) {
-                messageEl.textContent = data.error;
-                return;
-            }
-
-            const latitude = data.latitude;
-            const longitude = data.longitude;
-
-            map.setView([latitude, longitude], 10);
-
-            if (userMarker) {
-                map.removeLayer(userMarker);
-            }
-
-            userMarker = L.marker([latitude, longitude])
-                .addTo(map)
-                .bindPopup(`Searched location: ${data.display_name}`)
-                .openPopup();
-
-                loadNearbyMountains(latitude, longitude, radius);
-        })
-        .catch(function(error) {
-            console.error(error);
-            messageEl.textContent = "Could not search for the typed location.";
-        });
 }

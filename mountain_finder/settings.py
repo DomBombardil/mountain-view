@@ -27,6 +27,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+from dotenv import load_dotenv
+
+load_dotenv(".env.local")
+
 
 # Application definition
 

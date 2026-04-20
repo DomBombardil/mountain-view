@@ -7,8 +7,14 @@ const selectedDistanceEl = document.getElementById("selected-distance");
 const mountainlistEl = document.getElementById("mountain-list");
 const locationInput = document.getElementById("location-input");
 const searchLocationBtn = document.getElementById("search-location-btn");
+const showRouteBtn = document.getElementById("show-route-btn");
+const routeDistanceEl = document.getElementById("route-distance");
+const routeDurationEl = document.getElementById("route-duration");
 
 let selectedMarker = null;
+let currentStartPoint = null;
+let selectedMountain = null;
+let routeLine = null;
 
 const map = L.map("map").setView([47.8, 12.6], 9);
 
@@ -110,6 +116,11 @@ function searchTypedLocation() {
             const latitude = data.latitude;
             const longitude = data.longitude;
 
+            currentStartPoint = {
+                latitude: latitude,
+                longitude: longitude
+            };
+
             map.setView([latitude, longitude], 10);
 
             if (userMarker) {
@@ -131,6 +142,7 @@ function searchTypedLocation() {
 
 function loadNearbyMountains(latitude, longitude, radius) {
     const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
+    clearRouteInfo();
 
     fetch(url)
         .then(function(response) {
@@ -187,6 +199,11 @@ function loadNearbyMountains(latitude, longitude, radius) {
 }
 
 // Event listeners.
+
+showRouteBtn.addEventListener("click", function() {
+    showRouteToSelectedMountain();
+});
+
 searchLocationBtn.addEventListener("click", function() {
     searchTypedLocation();
 });
@@ -211,6 +228,11 @@ locateBtn.addEventListener("click", function() {
             const longitude = position.coords.longitude;
             const radius = radiusInput.value || 50;
 
+            currentStartPoint = {
+                latitude: latitude,
+                longitude: longitude
+            };
+            
             map.setView([latitude, longitude], 10);
 
             if (userMarker) {
@@ -231,7 +253,105 @@ locateBtn.addEventListener("click", function() {
 });
 
 function selectMountain(mountain) {
+    selectedMountain = mountain;
     selectedNameEl.textContent = mountain.name;
     selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
     selectedDistanceEl.textContent = `Distance ${mountain.distance_km} km`;
+}
+
+function formatDistance(meters) {
+    const km = meters / 1000;
+    return `${km.toFixed(1)} km`;
+}
+
+function formatDuration(seconds) {
+    const totalMinutes = Math.round(seconds / 60);
+
+    if (totalMinutes < 60) {
+        return `${totalMinutes} min`;
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (minutes === 0) {
+        return `${hours} h`;
+    }
+
+    return `${hours} h ${minutes} min`;
+}
+
+function clearRouteInfo() {
+    routeDistanceEl.textContent = "";
+    routeDurationEl.textContent = "";
+}
+
+function clearRouteLine() {
+    if (routeLine) {
+        map.removeLayer(routeLine);
+        routeLine = null;
+    }
+}
+
+function showRouteToSelectedMountain() {
+    console.log("currentStartPoint:", currentStartPoint);
+    console.log("selectedMountain:", selectedMountain);
+    if (!currentStartPoint) {
+        messageEl.textContent = "Please use your location or search for a location first.";
+        return;
+    }
+
+    if (!selectedMountain) {
+        messageEl.textContent = "Please select a mountain first.";
+        return;
+    }
+
+    messageEl.textContent = "Loading route...";
+    clearRouteInfo();
+
+    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedMountain.latitude}&end_lng=${selectedMountain.longitude}`;
+
+    fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+
+        .then(function(data) {
+            if (data.error) {
+                messageEl.textContent = data.error;
+                return;
+            }
+
+
+        clearRouteLine();
+
+        routeLine = L.geoJSON(data, {
+            style: function() {
+                return {
+                    weight: 5,
+                    opacity: 0.8
+                };
+            }
+        }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), {
+            padding: [40, 40]
+        });
+
+        const summary = data.features[0].properties.summary;
+        
+        if (!summary) {
+            messageEl.textContent = "Route loaded, but no summary information was found.";
+            return;
+        }
+
+        routeDistanceEl.textContent = `Route distance: ${formatDistance(summary.distance)}`;
+        routeDurationEl.textContent = `Route duration: ${formatDuration(summary.duration)}`;
+
+        messageEl.textContent = "Route Loaded.";
+        })
+
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not load route.";
+        });
 }

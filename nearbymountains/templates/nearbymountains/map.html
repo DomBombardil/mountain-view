@@ -27,7 +27,7 @@
                 <button id="search-location-btn">Search Location</button>
 
                 <label for="radius">Radius (km):</label>
-                <input type="number" id="radius", value="50" min="1" step="1">
+                <input type="number" id="radius" value="50" min="1" step="1">
 
                 <button id="locate-btn">Use My Location</button>
             </div>
@@ -43,6 +43,13 @@
                 <p id="selected-name">None</p>
                 <p id="selected-elevation"></p>
                 <p id="selected-distance"></p>
+
+                <label for="route-profile">Route mode:</label>
+                <select id="route-profile">
+                    <option value="foot-hiking">Hiking</option>
+                    <option value="driving-car">Driving</option>
+                </select>
+
                 <button id ="show-route-btn" type="button">Show Route</button>
                 <button id ="clear-route-btn" type="button">Clear Route</button>
 

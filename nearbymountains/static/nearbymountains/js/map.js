@@ -9,6 +9,7 @@ const mountainlistEl = document.getElementById("mountain-list");
 const locationInput = document.getElementById("location-input");
 const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
+const routeProfileEl = document.getElementById("route-profile");
 
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
@@ -340,10 +341,14 @@ function showRouteToSelectedMountain() {
         return;
     }
 
-    messageEl.textContent = "Loading route...";
     clearRouteInfo();
 
-    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedMountain.latitude}&end_lng=${selectedMountain.longitude}`;
+    const routeProfile = routeProfileEl.value;
+    const routeProfileLabel = routeProfile === "driving-car" ? "driving" : "hiking";
+
+    messageEl.textContent = `Loading ${routeProfileLabel} route...`;
+
+    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedMountain.latitude}&end_lng=${selectedMountain.longitude}&profile=${encodeURIComponent(routeProfile)}`;
 
     fetch(url)
         .then(function(response) {

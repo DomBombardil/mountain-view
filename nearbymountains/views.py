@@ -196,6 +196,12 @@ def mountain_route_api(request):
     start_lng = request.GET.get("start_lng")
     end_lat = request.GET.get("end_lat")
     end_lng = request.GET.get("end_lng")
+    profile = request.GET.get("profile", "foot-hiking")
+
+    allowed_profiles = {"foot-hiking", "driving-car"}
+    if profile not in allowed_profiles:
+        return JsonResponse({"error": "Invalid route profile."}, status=400)
+    
 
     if not all([start_lat, start_lng, end_lat, end_lng]):
         return JsonResponse({"error": "Start and end coordinates are required"}, status=400)
@@ -213,7 +219,7 @@ def mountain_route_api(request):
     if not api_key:
         return JsonResponse({"error":"Routing API key is not configured."}, status=500)
     
-    url = "https://api.openrouteservice.org/v2/directions/foot-hiking/geojson"
+    url = f"https://api.openrouteservice.org/v2/directions/{profile}/geojson"
     headers = {
         "Authorization": api_key,
         "Content-Type": "application/json",
@@ -229,7 +235,22 @@ def mountain_route_api(request):
         response = requests.post(url, json=payload, headers=headers, timeout=20)
         response.raise_for_status()
         route_data = response.json()
-    except requests.RequestException:
-        return JsonResponse({"error": "Could not retrieve route data."}, status=502)
+    except requests.RequestException as e:
+        print("===ORS Request failed===")
+        print("Error:", e)
+        detail = None
+
+        if e.response is not None:
+            print("Status code:", e.response.status_code)
+            print("Response body:", e.response.text)
+            try:
+                detail = e.response.json()
+            except ValueError:
+                detail = e.response.text
+
+        return JsonResponse({
+            "error": "Could not retrieve route data.",
+            "details": detail,},
+              status=502)
     
     return JsonResponse(route_data)

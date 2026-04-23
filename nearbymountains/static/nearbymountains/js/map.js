@@ -1,3 +1,4 @@
+// Html elements
 const messageEl = document.getElementById("message");
 const radiusInput = document.getElementById("radius");
 const locateBtn = document.getElementById("locate-btn");
@@ -6,10 +7,13 @@ const selectedElevationEl = document.getElementById("selected-elevation");
 const selectedDistanceEl = document.getElementById("selected-distance");
 const mountainlistEl = document.getElementById("mountain-list");
 const locationInput = document.getElementById("location-input");
-const searchLocationBtn = document.getElementById("search-location-btn");
-const showRouteBtn = document.getElementById("show-route-btn");
 const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
+
+// Buttons
+const clearRouteBtn = document.getElementById("clear-route-btn");
+const showRouteBtn = document.getElementById("show-route-btn");
+const searchLocationBtn = document.getElementById("search-location-btn");
 
 let selectedMarker = null;
 let currentStartPoint = null;
@@ -61,7 +65,6 @@ function setActiveListItem(selectedItem) {
     selectedItem.classList.add("active")
 }
 
-
 function renderMountainList(mountains, markerMap) {
     clearMountainList();
 
@@ -81,6 +84,7 @@ function renderMountainList(mountains, markerMap) {
 
             const marker = markerMap.get(mountain.name);
             if (marker) {
+                resetMarker(marker);
                 map.setView([mountain.latitude, mountain.longitude], 12);
                 marker.openPopup();
             }
@@ -143,6 +147,11 @@ function searchTypedLocation() {
 function loadNearbyMountains(latitude, longitude, radius) {
     const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
     clearRouteInfo();
+    if (selectedMarker) {
+        selectedMarker = null;
+    }
+    resetSelectedMountainState();
+
 
     fetch(url)
         .then(function(response) {
@@ -175,6 +184,7 @@ function loadNearbyMountains(latitude, longitude, radius) {
                     );
                 
                 marker.on("click", function() {
+                    resetMarker(marker);
                     selectMountain(mountain);
 
                     const listItems = mountainlistEl.querySelectorAll("li");
@@ -214,6 +224,10 @@ locationInput.addEventListener("keydown", function(event) {
     }
 });
 
+clearRouteBtn.addEventListener("click", function() {
+    clearRoute();
+});
+
 locateBtn.addEventListener("click", function() {
     if (!navigator.geolocation) {
         messageEl.textContent = "Geolocation is not supported by your browser.";
@@ -251,6 +265,7 @@ locateBtn.addEventListener("click", function() {
         }
     );
 });
+// End of event listeners.
 
 function selectMountain(mountain) {
     selectedMountain = mountain;
@@ -293,9 +308,28 @@ function clearRouteLine() {
     }
 }
 
+function clearRoute() {
+    clearRouteInfo();
+    clearRouteLine();
+    messageEl.textContent = "Route cleared.";
+}
+
+function resetSelectedMountainState() {
+    selectedMountain = null;
+    selectedNameEl.textContent = "None";
+    selectedElevationEl.textContent = "";
+    selectedDistanceEl.textContent = "";
+}
+
+function resetMarker(marker) {
+    if (selectedMarker) {
+        selectedMarker.setOpacity(1);
+    }
+    marker.setOpacity(0.6);
+    selectedMarker = marker
+}
+
 function showRouteToSelectedMountain() {
-    console.log("currentStartPoint:", currentStartPoint);
-    console.log("selectedMountain:", selectedMountain);
     if (!currentStartPoint) {
         messageEl.textContent = "Please use your location or search for a location first.";
         return;

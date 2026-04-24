@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 
+import math
 import os
 import requests
 from django.views.decorators.http import require_GET
@@ -254,3 +255,39 @@ def mountain_route_api(request):
               status=502)
     
     return JsonResponse(route_data)
+
+@require_GET
+def nearby_parking_api(request):
+    latitude = request.GET.get("latitude")
+    longitude = request.GET.get("longitude")
+
+    if not latitude or not longitude:
+        return JsonResponse({"error": "Latitude and longitude are required"}, status=400)
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+    except ValueError:
+        return JsonResponse({"error": "Latitude and longitude must be valid numbers."}, status=400)
+    
+    overpass_query = f"""
+    [out:json][timeout:25];
+    (
+     node["amenity"="parking"](arround:5000, {latitude}, {longitude});
+     way["amenity"="parking"](arround:5000, {latitude}, {longitude});
+    );
+    out center tags;
+    """ 
+
+    try: 
+        response = requests.post(
+            "https://overpass.api.de/api/interpreter",
+            data=overpass_query,
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+    
+    except requests.RequestException as e:
+        return JsonResponse({"error": "Could not retrieve parking data.", "details": str(e)}, status=502)

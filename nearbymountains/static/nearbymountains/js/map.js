@@ -15,11 +15,14 @@ const routeProfileEl = document.getElementById("route-profile");
 const clearRouteBtn = document.getElementById("clear-route-btn");
 const showRouteBtn = document.getElementById("show-route-btn");
 const searchLocationBtn = document.getElementById("search-location-btn");
+const findParkingBtn = document.getElementById("find-parking-btn");
 
 let selectedMarker = null;
 let currentStartPoint = null;
 let selectedMountain = null;
 let routeLine = null;
+let parkingMarkers = [];
+let selectedParking = null;
 
 const map = L.map("map").setView([47.8, 12.6], 9);
 
@@ -229,6 +232,10 @@ clearRouteBtn.addEventListener("click", function() {
     clearRoute();
 });
 
+findParkingBtn.addEventListener("click", function() {
+    findNearbyParking();
+})
+
 locateBtn.addEventListener("click", function() {
     if (!navigator.geolocation) {
         messageEl.textContent = "Geolocation is not supported by your browser.";
@@ -392,5 +399,75 @@ function showRouteToSelectedMountain() {
         .catch(function(error) {
             console.error(error);
             messageEl.textContent = "Could not load route.";
+        });
+}
+
+function clearParkingMarkers() {
+    parkingMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    parkingMarkers = [];
+    selectedParking = null;
+}
+
+function renderParkingMarkers(parkings) {
+    clearParkingMarkers();
+
+    parkings.forEach(function(parking) {
+        const marker = L.marker([parking.latitude, parking.longitude])
+            .addTo(map)
+            .bindPopup(
+                `<strong>${parking.name}</strong><br>
+                Distance to mountain: ${parking.distance_to_mountain_km} km <br>
+                <button type="button" class="route-to-parking-btn>Route here</button>`
+            );
+
+        marker.on("popupopen", function() {
+            const btn = document.querySelector(".route-to-parking-btn");
+            if (btn) {
+                btn.addEventListener("click", function() {
+                    selectedParking = parking;
+                    showRuteToSelectedParking();
+                });
+            }
+        });
+
+        parkingMarkers.push(marker);
+
+    });
+}
+
+function findNearbyParking() {
+    if (!selectMountain) {
+        messageEl.textContent = "Please select a mountain first.";
+        return;
+    }
+
+    messageEl.textContent = "Searching for nearby parking...";
+
+    const url = `/api/nearby-parking/?latitude=${selectedMountain.latitude}&longitude${selectedMountain.longitude}`;
+
+    fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.error) {
+                messageEl.textContent = data.error;
+                return;
+            }
+
+            if (data.parkings.length === 0) {
+                messageEl.textContent = "No nearby parking found.";
+                return;
+            }
+
+            renderParkingMarkers(data.parkings);
+            messageEl.textContent = `Found ${data.parkings.length} nearby parking options.`;
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not load nearby parking.";
         });
 }

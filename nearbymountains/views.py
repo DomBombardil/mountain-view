@@ -14,6 +14,24 @@ from django.views.decorators.http import require_GET
 
 from .models import Mountain
 
+# Formula to calculate the distance between 2 points on a spehere.
+def haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return r * c
+
+
 def mountain_map(request):
     return render(request, "nearbymountains/map.html")
 
@@ -274,20 +292,62 @@ def nearby_parking_api(request):
     overpass_query = f"""
     [out:json][timeout:25];
     (
-     node["amenity"="parking"](arround:5000, {latitude}, {longitude});
-     way["amenity"="parking"](arround:5000, {latitude}, {longitude});
+     node(around:5000, {latitude}, {longitude})["amenity"="parking"];
+     way(around:5000, {latitude}, {longitude})["amenity"="parking"];
     );
     out center tags;
     """ 
 
     try: 
         response = requests.post(
-            "https://overpass.api.de/api/interpreter",
-            data=overpass_query,
+            "https://overpass-api.de/api/interpreter",
+            data={"data": overpass_query},
+            headers={"User-Agent":"Nearby-mountain-finder/1.0"},
             timeout=30
         )
         response.raise_for_status()
         data = response.json()
     
     except requests.RequestException as e:
-        return JsonResponse({"error": "Could not retrieve parking data.", "details": str(e)}, status=502)
+        print("=== OVERPASS REQUEST FAILED ===")
+        print("Error:", e)
+
+        if e.response is not None:
+            print("Status code:", e.response.status_code)
+            print("Response body:", e.response.text)
+
+        return JsonResponse(
+            {
+                "error": "Could not retrieve parking data.", 
+                "details": e.response.text if e.response else str(e),
+                }, 
+                status=502
+                )
+
+    parkings = []
+
+    for element in data.get("elements", []):
+        if element.get("type") == "node":
+            lat = element.get("lat")
+            lng = element.get("lon")
+
+        else:
+            center = element.get("center", {})
+            lat = center.get("lat")
+            lng = center.get("lon")
+
+        if lat is None or lng is None:
+            continue
+
+        distance_km = haversine_km(latitude, longitude, lat, lng)
+
+        parkings.append({
+            "name": element.get("tags", {}).get("name", "Unnamed parking"),
+            "latitude": lat,
+            "longitude": lng,
+            "distance_to_mountain_km": round(distance_km, 2),
+        })
+
+    parkings.sort(key=lambda p: p["distance_to_mountain_km"])
+
+    return JsonResponse({"parkings": parkings[:10]})

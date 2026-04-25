@@ -11,6 +11,16 @@ const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
 const routeProfileEl = document.getElementById("route-profile");
 
+const parkingIcon = L.icon({
+    iconUrl: "/static/nearbymountains/icons/marker-icon-green.png",
+    shadowUrl: "/static/nearbymountains/icons/marker-shadow.png",
+
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
 const showRouteBtn = document.getElementById("show-route-btn");
@@ -415,12 +425,14 @@ function renderParkingMarkers(parkings) {
     clearParkingMarkers();
 
     parkings.forEach(function(parking) {
-        const marker = L.marker([parking.latitude, parking.longitude])
+        const marker = L.marker([parking.latitude, parking.longitude], {
+            icon : parkingIcon
+        })
             .addTo(map)
             .bindPopup(
                 `<strong>${parking.name}</strong><br>
                 Distance to mountain: ${parking.distance_to_mountain_km} km <br>
-                <button type="button" class="route-to-parking-btn>Route here</button>`
+                <button type="button" class="route-to-parking-btn">Route here</button>`
             );
 
         marker.on("popupopen", function() {
@@ -428,7 +440,7 @@ function renderParkingMarkers(parkings) {
             if (btn) {
                 btn.addEventListener("click", function() {
                     selectedParking = parking;
-                    showRuteToSelectedParking();
+                    showRouteToSelectedParking();
                 });
             }
         });
@@ -439,14 +451,14 @@ function renderParkingMarkers(parkings) {
 }
 
 function findNearbyParking() {
-    if (!selectMountain) {
+    if (!selectedMountain) {
         messageEl.textContent = "Please select a mountain first.";
         return;
     }
 
     messageEl.textContent = "Searching for nearby parking...";
 
-    const url = `/api/nearby-parking/?latitude=${selectedMountain.latitude}&longitude${selectedMountain.longitude}`;
+    const url = `/api/nearby-parking/?latitude=${selectedMountain.latitude}&longitude=${selectedMountain.longitude}`;
 
     fetch(url)
         .then(function(response) {
@@ -469,5 +481,59 @@ function findNearbyParking() {
         .catch(function(error) {
             console.error(error);
             messageEl.textContent = "Could not load nearby parking.";
+        });
+}
+
+function showRouteToSelectedParking() {
+    if (!currentStartPoint) {
+        messageEl.textContent = "Please use your location, or search for a location first.";
+        return;
+    }
+
+    if (!selectedParking) {
+        messageEl.textContent = "Please select a parking location fist.";
+        return;
+    }
+
+    clearRouteInfo()
+
+    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedParking.latitude}&end_lng=${selectedParking.longitude}&profile=driving-car`;
+
+    fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.error) {
+                messageEl.textContent = data.error
+                return;
+            }
+
+            clearRouteLine();
+
+            routeLine = L.geoJSON(data, {
+                style: function() {
+                    return {
+                        weight: 5,
+                        opacity: 0.8
+                    };
+                }
+            }).addTo(map);
+
+            map.fitBounds(routeLine.getBounds(), {
+                padding: [40, 40] 
+            });
+
+            const summary = data.features?.[0]?.properties?.summary;
+            if (summary) {
+                routeDistanceEl.textContent = `Route distance: ${formatDistance(summary.distance)}`;
+                routeDurationEl.textContent = `Route duration: ${formatDuration(summary.duration)}`;
+            }
+
+            messageEl.textContent = "Route to parking loaded.";
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not load the route to parking.";
         });
 }

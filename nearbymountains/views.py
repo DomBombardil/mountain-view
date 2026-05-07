@@ -295,6 +295,7 @@ def nearby_parking_api(request):
     (
      node(around:5000, {latitude}, {longitude})["amenity"="parking"];
      way(around:5000, {latitude}, {longitude})["amenity"="parking"];
+     relation(around:5000, {latitude}, {longitude})["amenity"="parking"];
      node(around:5000, {latitude}, {longitude})["amenity"="parking_entrance"];
 
      way(around:5000, {latitude}, {longitude})["highway"]["highway"!~"footway|path|cycleway|steps|pedestrian"];
@@ -381,21 +382,34 @@ def nearby_parking_api(request):
             "distance_to_mountain_km": round(distance_km, 2),
         })
 
-    parkings.sort(
-        key=lambda p: (
-                0 if p["type"] == "parking_entrance" else 1,
-                p["distance_to_mountain_km"]
-                )
-            )
+    parkings.sort(key=lambda p: p["distance_to_mountain_km"])
 
-    return JsonResponse({"parkings": parkings[:10]})
+    return JsonResponse({"parkings": parkings[:20]})
 
 def get_osm_element_coordinate(element):
     if element.get("type") == "node":
         return element.get("lat"), element.get("lon")
     
     center = element.get("center", {})
-    return center.get("lat"), center.get("lon")
+
+    if center:
+        return center.get("lat"), center.get("lon")
+    
+    geometry = element.get("geometry", [])
+
+    if not geometry:
+        return None, None
+    
+    lat_sum = 0
+    lng_sum = 0 
+
+    for point in geometry:
+        lat_sum += point["lat"]
+        lng_sum += point["lon"]
+
+    count = len(geometry)
+
+    return  lat_sum / count, lng_sum / count
 
 def find_nearest_road_point(lat, lng, road_elements):
     best_point = None

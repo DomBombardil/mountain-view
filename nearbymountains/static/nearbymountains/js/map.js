@@ -431,12 +431,16 @@ function renderParkingMarkers(parkings) {
             .addTo(map)
             .bindPopup(
                 `<strong>${parking.name}</strong><br>
+                Type: ${parking.type}<br>
+                OSM: ${parking.osm_type} ${parking.osm_id}<br>
+                Routing Target: ${parking.route_target_type}<br>
                 Distance to mountain: ${parking.distance_to_mountain_km} km <br>
                 <button type="button" class="route-to-parking-btn">Route here</button>`
             );
 
-        marker.on("popupopen", function() {
-            const btn = document.querySelector(".route-to-parking-btn");
+        marker.on("popupopen", function(event) {
+            const popupElement = event.popup.getElement();
+            const btn = popupElement.querySelector(".route-to-parking-btn");
             if (btn) {
                 btn.addEventListener("click", function() {
                     selectedParking = parking;
@@ -497,7 +501,7 @@ function showRouteToSelectedParking() {
 
     clearRouteInfo()
 
-    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedParking.latitude}&end_lng=${selectedParking.longitude}&profile=driving-car`;
+    const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedParking.route_latitude}&end_lng=${selectedParking.route_longitude}&profile=driving-car`;
 
     fetch(url)
         .then(function(response) {

@@ -247,7 +247,8 @@ def mountain_route_api(request):
         "coordinates": [
             [start_lng, start_lat], 
             [end_lng, end_lat],
-        ]
+        ],
+        "radiuses": [350, 3000],
     }
 
     try:
@@ -294,8 +295,11 @@ def nearby_parking_api(request):
     (
      node(around:5000, {latitude}, {longitude})["amenity"="parking"];
      way(around:5000, {latitude}, {longitude})["amenity"="parking"];
+     node(around:5000, {latitude}, {longitude})["amenity"="parking_entrance"];
+
+     way(around:5000, {latitude}, {longitude})["highway"]["highway"!~"footway|path|cycleway|steps|pedestrian"];
     );
-    out center tags;
+    out center tags geom;
     """ 
 
     try: 
@@ -324,30 +328,95 @@ def nearby_parking_api(request):
                 status=502
                 )
 
-    parkings = []
+    parking_elements = []
+    road_elements = []
 
     for element in data.get("elements", []):
-        if element.get("type") == "node":
-            lat = element.get("lat")
-            lng = element.get("lon")
+        tags = element.get("tags", {})
+        amenity = tags.get("amenity")
+        highway = tags.get("highway")
 
-        else:
-            center = element.get("center", {})
-            lat = center.get("lat")
-            lng = center.get("lon")
+        if amenity in ["parking", "parking_entrance"]:
+            parking_elements.append(element)
+
+        elif highway:
+            road_elements.append(element)
+
+    parkings = []
+
+    for element in parking_elements:
+        tags = element.get("tags", {})
+        lat, lng = get_osm_element_coordinate(element)
 
         if lat is None or lng is None:
             continue
 
         distance_km = haversine_km(latitude, longitude, lat, lng)
+        
+        route_lat = lat
+        route_lng = lng
+        route_target_type = tags.get("amenity")
+
+        if tags.get("amenity") == "parking":
+            nearest_road_point = find_nearest_road_point(lat, lng, road_elements)
+
+            if nearest_road_point:
+                route_lat = nearest_road_point["latitude"]
+                route_lng = nearest_road_point["longitude"]
+                route_target_type = "nearest_road"
 
         parkings.append({
-            "name": element.get("tags", {}).get("name", "Unnamed parking"),
+            "name": tags.get("name", "Unnamed parking"),
+            "type": tags.get("amenity"),
+            "osm_id": element.get("id"),
+            "osm_type": element.get("type"),
+
             "latitude": lat,
             "longitude": lng,
+
+            "route_latitude": route_lat,
+            "route_longitude": route_lng,
+            "route_target_type": route_target_type,
+
             "distance_to_mountain_km": round(distance_km, 2),
         })
 
-    parkings.sort(key=lambda p: p["distance_to_mountain_km"])
+    parkings.sort(
+        key=lambda p: (
+                0 if p["type"] == "parking_entrance" else 1,
+                p["distance_to_mountain_km"]
+                )
+            )
 
     return JsonResponse({"parkings": parkings[:10]})
+
+def get_osm_element_coordinate(element):
+    if element.get("type") == "node":
+        return element.get("lat"), element.get("lon")
+    
+    center = element.get("center", {})
+    return center.get("lat"), center.get("lon")
+
+def find_nearest_road_point(lat, lng, road_elements):
+    best_point = None
+    best_distance = None
+
+    for road in road_elements:
+        for point in road.get("geometry", []):
+            road_lat = point.get("lat")
+            road_lng = point.get("lon")
+
+            if road_lat is None or road_lng is None:
+                continue
+
+            distance = haversine_km(lat, lng, road_lat, road_lng)
+
+            if best_distance is None or distance < best_distance:
+                best_distance = distance
+                best_point = {
+                    "latitude": road_lat,
+                    "longitude": road_lng,
+                    "distance_km": round(distance, 3),
+                }
+    
+    return best_point

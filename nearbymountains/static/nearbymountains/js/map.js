@@ -42,6 +42,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 let userMarker = null;
 let mountainMarkers = [];
+let trailAccessMarkers = [];
 
 function clearMountainMarkers() {
     mountainMarkers.forEach(function(marker) {
@@ -50,6 +51,33 @@ function clearMountainMarkers() {
 
     mountainMarkers = [];
 }
+
+function clearTrailAccessMarkers(){
+    trailAccessMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    trailAccessMarkers = [];
+}
+
+function renderTrailAccessMarkers(trailPoints){
+    clearTrailAccessMarkers();
+
+    trailPoints.forEach(function(point){
+        const marker = L.marker([point.latitude, point.longitude])
+        .addTo(map)
+        .bindPopup(
+            `<strong>${point.name}</strong><br>
+            Type: ${point.type}<br>
+            OSM: ${point.osm_type} ${point.osm_id}
+            Distance from parking: ${point.distance_from_parking_km} km`
+        )
+
+        trailAccessMarkers.push(marker);
+    });
+}
+
+
 
 function fitMapToResults(latitude, longitude, mountains) {
     const bounds = [];
@@ -434,17 +462,26 @@ function renderParkingMarkers(parkings) {
                 Type: ${parking.type}<br>
                 OSM: ${parking.osm_type} ${parking.osm_id}<br>
                 Routing Target: ${parking.route_target_type}<br>
-                Distance to mountain: ${parking.distance_to_mountain_km} km <br>
-                <button type="button" class="route-to-parking-btn">Route here</button>`
+                Distance to mountain: ${parking.distance_to_mountain_km} km<br>
+                <button type="button" class="route-to-parking-btn">Route here</button><br>
+                <button type="button" class="show-hiking-routes-btn">Show Hiking Routes</button>`
             );
 
         marker.on("popupopen", function(event) {
             const popupElement = event.popup.getElement();
-            const btn = popupElement.querySelector(".route-to-parking-btn");
-            if (btn) {
-                btn.addEventListener("click", function() {
+            const routeBtn = popupElement.querySelector(".route-to-parking-btn");
+            if (routeBtn) {
+                routeBtn.addEventListener("click", function() {
                     selectedParking = parking;
                     showRouteToSelectedParking();
+                });
+            }
+
+            const hikingBtn = popupElement.querySelector(".show-hiking-routes-btn");
+            if (hikingBtn) {
+                hikingBtn.addEventListener("click", function(){
+                    selectedParking = parking;
+                    showHikingRoutesFromParking();
                 });
             }
         });
@@ -540,4 +577,102 @@ function showRouteToSelectedParking() {
             console.error(error);
             messageEl.textContent = "Could not load the route to parking.";
         });
+}
+
+function findTrailAccessPoints(){
+ if (!selectedParking) {
+    messageEl.textContent = "Please select a parking location first.";
+    return
+ }
+
+ messageEl.textContent = "Searching for trail access points...";
+
+ const url = `/api/trail-access-points/?latitude=${selectedParking.latitude}&longitude=${selectedParking.longitude}`;
+
+ fetch(url)
+    .then(function(response) {
+        return response.json();
+    })
+
+    .then(function(data) {
+        if (data.error){
+            messageEl.textContent = data.error;
+            return;
+        }
+
+        if (data.trail_points.length === 0){
+            messageEl.textContent = "No trail access points found near this parking.";
+            return;
+        }
+
+        renderTrailAccessMarkers(data.trail_points);
+        messageEl.textContent = `Found ${data.trail_points.length} trail access points.`;
+    })
+    .catch(function(error) {
+        console.error(error);
+        messageEl.textContent = "Could not load trail access points."
+    });
+}
+
+function showHikingRoutesFromParking() {
+    if (!selectedMountain) {
+        messageEl.textContent = "Please select a mountain first.";
+        return;
+    }
+
+    if (!selectedParking) {
+        messageEl.textContent = "Please select a parking first.";
+        return;
+    }
+
+    messageEl.textContent = "Loading viable route options...";
+    clearRouteInfo();
+    clearRouteLine();
+
+    const url = 
+        `/api/mountain-route/?start_lat=${selectedParking.route_latitude}` +
+        `&start_lng=${selectedParking.route_longitude}` +
+        `&end_lat=${selectedMountain.latitude}` +
+        `&end_lng=${selectedMountain.longitude}` +
+        `&profile=foot-hiking&alternatives=true`; 
+
+        fetch(url)
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    messageEl.textContent = data.error;
+                    return;
+                }
+
+                routeLine = L.geoJSON(data, {
+                    style: function(feature) {
+                        return {
+                            weight: 5,
+                            opacity: 0.8
+                        };
+                    }
+                }).addTo(map);
+
+                map.fitBounds(routeLine.getBounds(), {
+                    padding: [40, 40]
+                });
+
+                const summary = data.features?.[0]?.properties?.summary;
+
+                if (summary) {
+                    routeDistanceEl.textContent = 
+                    `Hiking distance: ${formatDistance(summary.distance)}`;
+                    
+                    routeDurationEl.textContent = 
+                    `Route duration: ${formatDuration(summary.duration)}`;
+                }
+
+                messageEl.textContent = "Hiking route options loaded.";
+            })
+            .catch(function(error){
+                console.error(error);
+                messageEl.textContent = "Could not load hike routes.";
+            });
 }

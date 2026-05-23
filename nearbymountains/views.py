@@ -217,6 +217,8 @@ def mountain_route_api(request):
     end_lng = request.GET.get("end_lng")
     profile = request.GET.get("profile", "foot-hiking")
 
+    alternatives = request.GET.get("alternatives") == "true"
+
     allowed_profiles = {"foot-hiking", "driving-car"}
     if profile not in allowed_profiles:
         return JsonResponse({"error": "Invalid route profile."}, status=400)
@@ -250,6 +252,13 @@ def mountain_route_api(request):
         ],
         "radiuses": [350, 3000],
     }
+
+    if alternatives and profile == "foot-hiking":
+        payload["alternative_routes"] = {
+            "target_count": 3,
+            "share_factor": 0.6,
+            "weight_factor": 1.8,
+        }
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=20)
@@ -434,3 +443,89 @@ def find_nearest_road_point(lat, lng, road_elements):
                 }
     
     return best_point
+
+@require_GET
+def trail_access_points_api(request):
+    latitude = request.GET.get("latitude")
+    longitude = request.GET.get("longitude")
+
+    if not latitude or not longitude:
+        return JsonResponse({"error": "Latitude and longitude are required"}, status=400)
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+    except ValueError:
+        return JsonResponse({"error": "Latitude and longitude must be valid numbers."}, status=400)
+
+    search_radius = 1500
+    
+    overpass_query = f"""
+    [out:json][timeout:25];
+    (
+     node(around:{search_radius}, {latitude}, {longitude})["tourism"="trailhead"];
+     node(around:{search_radius}, {latitude}, {longitude})["information"="guidepost"];
+
+     node(around:{search_radius}, {latitude}, {longitude})["highway"="path"];
+     way(around:{search_radius}, {latitude}, {longitude})["highway"="path"];
+
+     node(around:{search_radius}, {latitude}, {longitude})["highway"="footway"];
+     way(around:{search_radius}, {latitude}, {longitude})["highway"="footway"];
+
+     node(around:{search_radius}, {latitude}, {longitude})["highway"="track"];
+     way(around:{search_radius}, {latitude}, {longitude})["highway"="track"];
+    );
+    out center tags geom;
+    """ 
+
+    try: 
+        response = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data={"data": overpass_query},
+            headers={"User-Agent":"Nearby-mountain-finder/1.0"},
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+    
+    except requests.RequestException as e:
+        print("=== OVERPASS REQUEST FAILED ===")
+        print("Error:", e)
+
+        if e.response is not None:
+            print("Status code:", e.response.status_code)
+            print("Response body:", e.response.text)
+
+        return JsonResponse(
+            {
+                "error": "Could not retrieve trail access points data.", 
+                "details": e.response.text if e.response else str(e),
+                }, 
+                status=502
+                )
+
+    trail_points = []
+
+    for element in data.get("elements", []):
+        tags = element.get("tags", {})
+        lat, lng = get_osm_element_coordinate(element)
+
+        if lat is None or lng is None:
+            continue
+
+        distance_km = haversine_km(latitude, longitude, lat, lng)
+
+        trail_points.append({
+            "name": tags.get("name", "Unnamed trail acess"),
+            "type": tags.get("tourism") or tags.get("information") or tags.get("highway"),
+            "osm_id": element.get("id"),
+            "osm_type": element.get("type"),
+            "latitude": lat,
+            "longitude": lng,
+            "distance_from_parking_km": round(distance_km, 1),
+        })
+
+        trail_points.sort(key=lambda p: p["distance_from_parking_km"])
+
+    return JsonResponse({"trail_points": trail_points[:20]})

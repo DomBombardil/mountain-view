@@ -198,6 +198,22 @@ function formatDuration(seconds) {
     return `${hours} h ${minutes} min`;
 }
 
+function getRouteIntensity(ascent) {
+    if (ascent === null || ascent === undefined) {
+        return "Unknown";
+    }
+
+    if (ascent < 300) {
+        return "Easy";
+    }
+
+    if (ascent < 800) {
+        return "Moderate";
+    }
+
+    return "Hard";
+}
+
 function clearRouteInfo() {
     routeDistanceEl.textContent = "";
     routeDurationEl.textContent = "";
@@ -589,13 +605,53 @@ function showHikingRoutesFromParking() {
     fetchData(url)
         .then(function(data) {
             clearRouteLine();
+            console.log(data.features[0].properties.summary);
+
+            const durations = data.features.map(function(feature) {
+                return feature.properties.summary.duration;
+            });
+
+            const sortedDurations = [...durations].sort(function(a, b) {
+                return a - b;
+            })
 
             routeLine = L.geoJSON(data, {
                 style: function(feature) {
+                    const duration = feature.properties.summary.duration;
+
+                    let color = "blue";
+
+                    if (duration === sortedDurations[0]) {
+                        color = "green";
+                    } else if (duration === sortedDurations[sortedDurations.length - 1]) {
+                        color = "orange";
+                    }
+
                     return {
+                        color: color,
                         weight: 5,
-                        opacity: 0.8
+                        opacity: 0.8,
                     };
+                },
+
+                onEachFeature: function(feature, layer) {
+                    const summary = feature.properties.summary;
+
+                    const distance = formatDistance(summary.distance);
+                    const duration = formatDuration(summary.duration);
+
+                    const ascent = summary.ascent;
+                    const descent = summary.descent;
+                    const intensity = getRouteIntensity(ascent);
+
+                    layer.bindPopup(
+                        `<strong>Hiking route</strong><br>
+                        Distance: ${distance}<br>
+                        Duration: ${duration}<br>
+                        Elevatio gain: ${ascent !== undefined ? Math.round(ascent) + " m" : "Unknown"}<br>
+                        Elevation loss: ${descent !==undefined ? Math.round(descent) + " m" : "Unknown"}<br>
+                        Intensity: ${intensity}`
+                    );
                 }
             }).addTo(map);
 

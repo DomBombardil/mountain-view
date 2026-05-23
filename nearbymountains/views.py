@@ -251,13 +251,14 @@ def mountain_route_api(request):
             [end_lng, end_lat],
         ],
         "radiuses": [350, 3000],
+        "elevation": True,
     }
 
     if alternatives and profile == "foot-hiking":
         payload["alternative_routes"] = {
             "target_count": 3,
-            "share_factor": 0.6,
-            "weight_factor": 1.8,
+            "share_factor": 0.8,
+            "weight_factor": 2.5,
         }
 
     try:

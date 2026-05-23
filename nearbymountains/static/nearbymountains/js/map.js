@@ -44,214 +44,8 @@ let userMarker = null;
 let mountainMarkers = [];
 let trailAccessMarkers = [];
 
-function clearMountainMarkers() {
-    mountainMarkers.forEach(function(marker) {
-        map.removeLayer(marker);
-    });
-
-    mountainMarkers = [];
-}
-
-function clearTrailAccessMarkers(){
-    trailAccessMarkers.forEach(function(marker) {
-        map.removeLayer(marker);
-    });
-
-    trailAccessMarkers = [];
-}
-
-function renderTrailAccessMarkers(trailPoints){
-    clearTrailAccessMarkers();
-
-    trailPoints.forEach(function(point){
-        const marker = L.marker([point.latitude, point.longitude])
-        .addTo(map)
-        .bindPopup(
-            `<strong>${point.name}</strong><br>
-            Type: ${point.type}<br>
-            OSM: ${point.osm_type} ${point.osm_id}
-            Distance from parking: ${point.distance_from_parking_km} km`
-        )
-
-        trailAccessMarkers.push(marker);
-    });
-}
-
-
-
-function fitMapToResults(latitude, longitude, mountains) {
-    const bounds = [];
-
-    bounds.push([latitude, longitude]);
-
-    mountains.forEach(function(mountain) {
-        bounds.push([mountain.latitude, mountain.longitude]);
-    });
-
-    map.fitBounds(bounds, {
-        padding: [40, 40]
-    });
-}
-
-function clearMountainList() {
-    mountainlistEl.innerHTML = "";
-}
-
-function setActiveListItem(selectedItem) {
-    const allitems = mountainlistEl.querySelectorAll("li");
-
-    allitems.forEach(function(item) {
-        item.classList.remove("active")
-    });
-
-    selectedItem.classList.add("active")
-}
-
-function renderMountainList(mountains, markerMap) {
-    clearMountainList();
-
-    mountains.forEach(function(mountain) {
-        const listItem = document.createElement("li");
-
-        listItem.innerHTML = ` 
-            <strong>${mountain.name}</strong><br>
-            Elevation: ${mountain.elevation} m<br>
-            Distance: ${mountain.distance_km} km
-            `;
-
-
-        listItem.addEventListener("click", function() {
-            selectMountain(mountain);
-            setActiveListItem(listItem);
-
-            const marker = markerMap.get(mountain.name);
-            if (marker) {
-                resetMarker(marker);
-                map.setView([mountain.latitude, mountain.longitude], 12);
-                marker.openPopup();
-            }
-        });
-
-        mountainlistEl.appendChild(listItem);
-    });
-}
-
-function searchTypedLocation() {
-    const query = locationInput.value.trim();
-    const radius = radiusInput.value || 50;
-
-    if (!query) {
-        messageEl.textContent = "Please enter a location.";
-        return;
-    }
-
-    messageEl.textContent = "Searching for location...";
-
-    const url = `/api/geocode-location/?query=${encodeURIComponent(query)}`;
-
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.error) {
-                messageEl.textContent = data.error;
-                return;
-            }
-
-            const latitude = data.latitude;
-            const longitude = data.longitude;
-
-            currentStartPoint = {
-                latitude: latitude,
-                longitude: longitude
-            };
-
-            map.setView([latitude, longitude], 10);
-
-            if (userMarker) {
-                map.removeLayer(userMarker);
-            }
-
-            userMarker = L.marker([latitude, longitude])
-                .addTo(map)
-                .bindPopup(`Searched location: ${data.display_name}`)
-                .openPopup();
-
-                loadNearbyMountains(latitude, longitude, radius);
-        })
-        .catch(function(error) {
-            console.error(error);
-            messageEl.textContent = "Could not search for the typed location.";
-        });
-}
-
-function loadNearbyMountains(latitude, longitude, radius) {
-    const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
-    clearRouteInfo();
-    if (selectedMarker) {
-        selectedMarker = null;
-    }
-    resetSelectedMountainState();
-
-
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data){
-            if (data.error) {
-                messageEl.textContent = data.error;
-                return;
-            }
-
-            clearMountainMarkers();
-
-            if (data.mountains.length === 0) {
-                messageEl.textContent = "No mountains found within this radius."
-                return;
-            }
-
-            messageEl.textContent = `Found ${data.mountains.length} nearby mountains.`;
-
-            const markerMap = new Map(); 
-
-            data.mountains.forEach(function(mountain) {
-                const marker = L.marker([mountain.latitude, mountain.longitude])
-                    .addTo(map)
-                    .bindPopup(
-                        `<strong>${mountain.name}</strong><br>
-                        Elevation: ${mountain.elevation} m<br>
-                        Distance: ${mountain.distance_km} km`
-                    );
-                
-                marker.on("click", function() {
-                    resetMarker(marker);
-                    selectMountain(mountain);
-
-                    const listItems = mountainlistEl.querySelectorAll("li");
-                    listItems.forEach(function(item) {
-                        if (item.textContent.includes(mountain.name)) {
-                            setActiveListItem(item);
-                        }
-                    });
-                });
-            
-                mountainMarkers.push(marker);
-                markerMap.set(mountain.name, marker);
-            });
-
-            renderMountainList(data.mountains, markerMap);
-            fitMapToResults(latitude, longitude, data.mountains);
-        })
-        .catch(function(error) {
-            console.error(error);
-            messageEl.textContent = "Could not load mountain data.";
-        });
-}
 
 // Event listeners.
-
 showRouteBtn.addEventListener("click", function() {
     showRouteToSelectedMountain();
 });
@@ -311,13 +105,75 @@ locateBtn.addEventListener("click", function() {
         }
     );
 });
-// End of event listeners.
 
+// Formating functions 
 function selectMountain(mountain) {
     selectedMountain = mountain;
     selectedNameEl.textContent = mountain.name;
     selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
     selectedDistanceEl.textContent = `Distance ${mountain.distance_km} km`;
+}
+
+
+function clearMountainMarkers() {
+    mountainMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    mountainMarkers = [];
+}
+
+function clearTrailAccessMarkers(){
+    trailAccessMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    trailAccessMarkers = [];
+}
+
+function renderTrailAccessMarkers(trailPoints){
+    clearTrailAccessMarkers();
+
+    trailPoints.forEach(function(point){
+        const marker = L.marker([point.latitude, point.longitude])
+        .addTo(map)
+        .bindPopup(
+            `<strong>${point.name}</strong><br>
+            Type: ${point.type}<br>
+            OSM: ${point.osm_type} ${point.osm_id}
+            Distance from parking: ${point.distance_from_parking_km} km`
+        )
+
+        trailAccessMarkers.push(marker);
+    });
+}
+
+function fitMapToResults(latitude, longitude, mountains) {
+    const bounds = [];
+
+    bounds.push([latitude, longitude]);
+
+    mountains.forEach(function(mountain) {
+        bounds.push([mountain.latitude, mountain.longitude]);
+    });
+
+    map.fitBounds(bounds, {
+        padding: [40, 40]
+    });
+}
+
+function clearMountainList() {
+    mountainlistEl.innerHTML = "";
+}
+
+function setActiveListItem(selectedItem) {
+    const allitems = mountainlistEl.querySelectorAll("li");
+
+    allitems.forEach(function(item) {
+        item.classList.remove("active")
+    });
+
+    selectedItem.classList.add("active")
 }
 
 function formatDistance(meters) {
@@ -375,6 +231,143 @@ function resetMarker(marker) {
     selectedMarker = marker
 }
 
+function clearParkingMarkers() {
+    parkingMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    parkingMarkers = [];
+    selectedParking = null;
+}
+
+// Rendering Data 
+function loadNearbyMountains(latitude, longitude, radius) {
+    const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
+    clearRouteInfo();
+    if (selectedMarker) {
+        selectedMarker = null;
+    }
+    resetSelectedMountainState();
+
+
+    fetchData(url)
+        .then(function(data){
+            clearMountainMarkers();
+
+            if (data.mountains.length === 0) {
+                messageEl.textContent = "No mountains found within this radius."
+                return;
+            }
+
+            messageEl.textContent = `Found ${data.mountains.length} nearby mountains.`;
+
+            const markerMap = new Map(); 
+
+            data.mountains.forEach(function(mountain) {
+                const marker = L.marker([mountain.latitude, mountain.longitude])
+                    .addTo(map)
+                    .bindPopup(
+                        `<strong>${mountain.name}</strong><br>
+                        Elevation: ${mountain.elevation} m<br>
+                        Distance: ${mountain.distance_km} km`
+                    );
+                
+                marker.on("click", function() {
+                    resetMarker(marker);
+                    selectMountain(mountain);
+
+                    const listItems = mountainlistEl.querySelectorAll("li");
+                    listItems.forEach(function(item) {
+                        if (item.textContent.includes(mountain.name)) {
+                            setActiveListItem(item);
+                        }
+                    });
+                });
+            
+                mountainMarkers.push(marker);
+                markerMap.set(mountain.name, marker);
+            });
+
+            renderMountainList(data.mountains, markerMap);
+            fitMapToResults(latitude, longitude, data.mountains);
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not load mountain data.";
+        });
+}
+
+function renderMountainList(mountains, markerMap) {
+    clearMountainList();
+
+    mountains.forEach(function(mountain) {
+        const listItem = document.createElement("li");
+
+        listItem.innerHTML = ` 
+            <strong>${mountain.name}</strong><br>
+            Elevation: ${mountain.elevation} m<br>
+            Distance: ${mountain.distance_km} km
+            `;
+
+
+        listItem.addEventListener("click", function() {
+            selectMountain(mountain);
+            setActiveListItem(listItem);
+
+            const marker = markerMap.get(mountain.name);
+            if (marker) {
+                resetMarker(marker);
+                map.setView([mountain.latitude, mountain.longitude], 12);
+                marker.openPopup();
+            }
+        });
+
+        mountainlistEl.appendChild(listItem);
+    });
+}
+
+function searchTypedLocation() {
+    const query = locationInput.value.trim();
+    const radius = radiusInput.value || 50;
+
+    if (!query) {
+        messageEl.textContent = "Please enter a location.";
+        return;
+    }
+
+    messageEl.textContent = "Searching for location...";
+
+    const url = `/api/geocode-location/?query=${encodeURIComponent(query)}`;
+
+    fetchData(url)
+        .then(function(data){
+            const latitude = data.latitude;
+            const longitude = data.longitude;
+
+            currentStartPoint = {
+                latitude: latitude,
+                longitude: longitude
+            };
+
+            map.setView([latitude, longitude], 10);
+
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+
+            userMarker = L.marker([latitude, longitude])
+                .addTo(map)
+                .bindPopup(`Searched location: ${data.display_name}`)
+                .openPopup();
+
+                loadNearbyMountains(latitude, longitude, radius);
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not search for the typed location.";
+        });
+}
+
 function showRouteToSelectedMountain() {
     if (!currentStartPoint) {
         messageEl.textContent = "Please use your location or search for a location first.";
@@ -395,17 +388,8 @@ function showRouteToSelectedMountain() {
 
     const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedMountain.latitude}&end_lng=${selectedMountain.longitude}&profile=${encodeURIComponent(routeProfile)}`;
 
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-
-        .then(function(data) {
-            if (data.error) {
-                messageEl.textContent = data.error;
-                return;
-            }
-
+    fetchData(url)
+        .then(function(data){
 
         clearRouteLine();
 
@@ -438,15 +422,6 @@ function showRouteToSelectedMountain() {
             console.error(error);
             messageEl.textContent = "Could not load route.";
         });
-}
-
-function clearParkingMarkers() {
-    parkingMarkers.forEach(function(marker) {
-        map.removeLayer(marker);
-    });
-
-    parkingMarkers = [];
-    selectedParking = null;
 }
 
 function renderParkingMarkers(parkings) {
@@ -501,16 +476,8 @@ function findNearbyParking() {
 
     const url = `/api/nearby-parking/?latitude=${selectedMountain.latitude}&longitude=${selectedMountain.longitude}`;
 
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.error) {
-                messageEl.textContent = data.error;
-                return;
-            }
-
+    fetchData(url) 
+        .then(function(data){
             if (data.parkings.length === 0) {
                 messageEl.textContent = "No nearby parking found.";
                 return;
@@ -540,16 +507,8 @@ function showRouteToSelectedParking() {
 
     const url = `/api/mountain-route/?start_lat=${currentStartPoint.latitude}&start_lng=${currentStartPoint.longitude}&end_lat=${selectedParking.route_latitude}&end_lng=${selectedParking.route_longitude}&profile=driving-car`;
 
-    fetch(url)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.error) {
-                messageEl.textContent = data.error
-                return;
-            }
-
+    fetchData(url)
+        .then(function(data){
             clearRouteLine();
 
             routeLine = L.geoJSON(data, {
@@ -580,38 +539,29 @@ function showRouteToSelectedParking() {
 }
 
 function findTrailAccessPoints(){
- if (!selectedParking) {
-    messageEl.textContent = "Please select a parking location first.";
-    return
- }
+    if (!selectedParking) {
+        messageEl.textContent = "Please select a parking location first.";
+        return
+    }
 
- messageEl.textContent = "Searching for trail access points...";
+    messageEl.textContent = "Searching for trail access points...";
 
- const url = `/api/trail-access-points/?latitude=${selectedParking.latitude}&longitude=${selectedParking.longitude}`;
+    const url = `/api/trail-access-points/?latitude=${selectedParking.latitude}&longitude=${selectedParking.longitude}`;
 
- fetch(url)
-    .then(function(response) {
-        return response.json();
-    })
+    fetchData(url)
+        .then(function(data){
+            if (data.trail_points.length === 0){
+                messageEl.textContent = "No trail access points found near this parking.";
+                return;
+            }
 
-    .then(function(data) {
-        if (data.error){
-            messageEl.textContent = data.error;
-            return;
-        }
-
-        if (data.trail_points.length === 0){
-            messageEl.textContent = "No trail access points found near this parking.";
-            return;
-        }
-
-        renderTrailAccessMarkers(data.trail_points);
-        messageEl.textContent = `Found ${data.trail_points.length} trail access points.`;
-    })
-    .catch(function(error) {
-        console.error(error);
-        messageEl.textContent = "Could not load trail access points."
-    });
+            renderTrailAccessMarkers(data.trail_points);
+            messageEl.textContent = `Found ${data.trail_points.length} trail access points.`;
+        })
+        .catch(function(error) {
+            console.error(error);
+            messageEl.textContent = "Could not load trail access points."
+            });
 }
 
 function showHikingRoutesFromParking() {
@@ -636,43 +586,51 @@ function showHikingRoutesFromParking() {
         `&end_lng=${selectedMountain.longitude}` +
         `&profile=foot-hiking&alternatives=true`; 
 
-        fetch(url)
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                if (data.error) {
-                    messageEl.textContent = data.error;
-                    return;
+    fetchData(url)
+        .then(function(data) {
+            clearRouteLine();
+
+            routeLine = L.geoJSON(data, {
+                style: function(feature) {
+                    return {
+                        weight: 5,
+                        opacity: 0.8
+                    };
                 }
+            }).addTo(map);
 
-                routeLine = L.geoJSON(data, {
-                    style: function(feature) {
-                        return {
-                            weight: 5,
-                            opacity: 0.8
-                        };
-                    }
-                }).addTo(map);
-
-                map.fitBounds(routeLine.getBounds(), {
-                    padding: [40, 40]
-                });
-
-                const summary = data.features?.[0]?.properties?.summary;
-
-                if (summary) {
-                    routeDistanceEl.textContent = 
-                    `Hiking distance: ${formatDistance(summary.distance)}`;
-                    
-                    routeDurationEl.textContent = 
-                    `Route duration: ${formatDuration(summary.duration)}`;
-                }
-
-                messageEl.textContent = "Hiking route options loaded.";
-            })
-            .catch(function(error){
-                console.error(error);
-                messageEl.textContent = "Could not load hike routes.";
+            map.fitBounds(routeLine.getBounds(), {
+                padding: [40, 40]
             });
+
+            const summary = data.features?.[0]?.properties?.summary;
+
+            if (summary) {
+                routeDistanceEl.textContent = 
+                `Hiking distance: ${formatDistance(summary.distance)}`;
+                
+                routeDurationEl.textContent = 
+                `Route duration: ${formatDuration(summary.duration)}`;
+            }
+
+            messageEl.textContent = "Hiking route options loaded.";
+        })
+        .catch(function(error){
+            console.error(error);
+            messageEl.textContent = "Could not load hike routes.";
+        });
+}
+
+function fetchData(url) {
+    return fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if(data.error) {
+                throw new Error(data.error);
+            }
+
+            return data;
+        });
 }

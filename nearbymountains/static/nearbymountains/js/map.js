@@ -198,20 +198,70 @@ function formatDuration(seconds) {
     return `${hours} h ${minutes} min`;
 }
 
-function getRouteIntensity(ascent) {
-    if (ascent === null || ascent === undefined) {
-        return "Unknown";
+function estimateHikingDuration(distanceMeters, ascentMeters) {
+    const distanceKm = distanceMeters / 1000;
+    const ascent = ascentMeters || 0;
+
+    const distanceHours = distanceKm / 5;
+    const ascentHours = ascent / 600;
+
+    const totalSeconds = (distanceHours + ascentHours) * 3600;
+
+    return totalSeconds;
+}
+
+function getRouteIntensity(distanceMeters, ascentMeters) {
+    const distanceKm = distanceMeters / 1000;
+
+    if (ascentMeters === null || ascentMeters === undefined) {
+        if (distanceKm < 6) {
+            return "Easy";
+        }
+    
+
+        if (distanceKm < 12) {
+            return "Moderate";
+        }
+
+        return "Hard";
     }
 
-    if (ascent < 300) {
+    if (distanceKm < 6 && ascentMeters < 300) {
         return "Easy";
     }
 
-    if (ascent < 800) {
+    if (distanceKm < 12 && ascentMeters < 800) {
         return "Moderate";
     }
 
     return "Hard";
+}
+
+function calculateElevationStats(coordinates) {
+    let ascent = 0;
+    let descent = 0; 
+
+    for (let i = 1; i < coordinates.length; i++) {
+        const previousElevation = coordinates[i - 1][2];
+        const currentElevation = coordinates[i][2];
+
+        if (previousElevation === undefined || currentElevation === undefined) {
+            return null;
+        }
+
+        const difference = currentElevation - previousElevation;
+
+        if (difference > 0) {
+            ascent += difference;
+        } else {
+            descent += Math.abs(difference);
+        }
+    }
+
+    return {
+        ascent: ascent,
+        descent: descent
+    };
 }
 
 function clearRouteInfo() {
@@ -606,6 +656,7 @@ function showHikingRoutesFromParking() {
         .then(function(data) {
             clearRouteLine();
             console.log(data.features[0].properties.summary);
+            console.log("First Coordinate:", data.features[0].geometry.coordinates[0]);
 
             const durations = data.features.map(function(feature) {
                 return feature.properties.summary.duration;
@@ -638,11 +689,15 @@ function showHikingRoutesFromParking() {
                     const summary = feature.properties.summary;
 
                     const distance = formatDistance(summary.distance);
-                    const duration = formatDuration(summary.duration);
 
-                    const ascent = summary.ascent;
-                    const descent = summary.descent;
-                    const intensity = getRouteIntensity(ascent);
+                    const elevationStats = calculateElevationStats(feature.geometry.coordinates);
+
+                    const ascent = elevationStats ? elevationStats.ascent : null;
+                    const descent = elevationStats ? elevationStats.descent : null;
+                    const intensity = getRouteIntensity(summary.distance, ascent);
+
+                    const estimatedDurationSeconds = estimateHikingDuration(summary.distance, ascent);
+                    const duration = formatDuration(estimatedDurationSeconds);
 
                     layer.bindPopup(
                         `<strong>Hiking route</strong><br>

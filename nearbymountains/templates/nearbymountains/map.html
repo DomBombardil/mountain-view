@@ -6,63 +6,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nearby Mountains Map</title>
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <link rel="stylesheet" href="{% static 'nearbymountains/css/map.css' %}">
 </head>
 <body>
-    <div class="layout">
-        <div id="sidebar" class="sidebar">
-            <h2>Nearby Mountains</h2>
-            <ul id="mountain-list"></ul>
-        </div>
+    <main class="app-shell">
+        <aside id="sidebar" class="sidebar">
+            <div class="brand-block">
+                <span class="brand-icon"><i class="bi bi-triangle-fill"></i></span>
+                <div>
+                    <p class="eyebrow">Mountain finder</p>
+                    <h1>Nearby Mountains</h1>
+                </div>
+            </div>
+            <div class="sidebar-copy">
+                Search a place or use your position, then pick a summit to route, park, and hike.
+            </div>
+            <ul id="mountain-list" class="mountain-list"></ul>
+        </aside>
 
-        <div class="map-section">
-            <div class="controls">
-            <label for ="location-input">Location:</label>
-            <input
-                type="text"
-                id="location-input"
-                placeholder="e.g. 83301 Traunreut">
+        <section class="map-section">
+            <div class="toolbar">
+                <div class="field-group location-field">
+                    <label for="location-input" class="form-label">Location</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input
+                            type="text"
+                            id="location-input"
+                            class="form-control"
+                            placeholder="e.g. 83301 Traunreut">
+                    </div>
+                </div>
 
-                <button id="search-location-btn">Search Location</button>
+                <div class="field-group radius-field">
+                    <label for="radius" class="form-label">Radius</label>
+                    <div class="input-group">
+                        <input type="number" id="radius" class="form-control" value="50" min="1" step="1">
+                        <span class="input-group-text">km</span>
+                    </div>
+                </div>
 
-                <label for="radius">Radius (km):</label>
-                <input type="number" id="radius" value="50" min="1" step="1">
-
-                <button id="locate-btn">Use My Location</button>
+                <div class="toolbar-actions">
+                    <button id="search-location-btn" class="btn btn-primary" type="button">
+                        <i class="bi bi-compass"></i>
+                        Search
+                    </button>
+                    <button id="locate-btn" class="btn btn-outline-primary" type="button">
+                        <i class="bi bi-person-standing"></i>
+                        Use My Location
+                    </button>
+                </div>
             </div>
 
-            <div id="message" class="message">
-                Click "Use My Location" to load nearby mountains.
+            <div id="message" class="message alert alert-light" role="status">
+                Use your location or search a place to load nearby mountains.
             </div>
 
             <div id="map"></div>
 
             <div id="selected-mountain" class="selected-mountain">
-                <h3>Selected Mountain</h3>
-                <p id="selected-name">None</p>
-                <p id="selected-elevation"></p>
-                <p id="selected-distance"></p>
+                <div class="selected-header">
+                    <div>
+                        <p class="eyebrow">Current selection</p>
+                        <h2>Selected Mountain</h2>
+                    </div>
+                    <span class="selected-icon"><i class="bi bi-triangle-fill"></i></span>
+                </div>
 
-                <label for="route-profile">Route mode:</label>
-                <select id="route-profile">
-                    <option value="foot-hiking">Hiking</option>
-                    <option value="driving-car">Driving</option>
-                </select>
+                <div class="selected-stats">
+                    <div class="stat-card stat-card-main">
+                        <span class="stat-label">Summit</span>
+                        <strong id="selected-name">None</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Elevation</span>
+                        <strong id="selected-elevation">-</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Distance</span>
+                        <strong id="selected-distance">-</strong>
+                    </div>
+                </div>
 
-                <button id ="show-route-btn" type="button">Show Route</button>
-                <button id ="clear-route-btn" type="button">Clear Route</button>
-                <button id="find-parking-btn" type="button">Find Parking</button>
+                <div class="route-controls">
+                    <div class="field-group route-field">
+                        <label for="route-profile" class="form-label">Route mode</label>
+                        <select id="route-profile" class="form-select">
+                            <option value="foot-hiking">Hiking</option>
+                            <option value="driving-car">Driving</option>
+                        </select>
+                    </div>
 
-                <div id ="route-info" class="route-info">
+                    <div class="selected-actions">
+                        <button id="show-route-btn" class="btn btn-success" type="button">
+                            <i class="bi bi-signpost-split"></i>
+                            Show Route
+                        </button>
+                        <button id="find-parking-btn" class="btn btn-outline-success" type="button">
+                            <i class="bi bi-car-front"></i>
+                            Find Parking
+                        </button>
+                        <button id="clear-route-btn" class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-x-circle"></i>
+                            Clear Route
+                        </button>
+                    </div>
+                </div>
+
+                <div id="route-info" class="route-info">
                     <p id="route-distance"></p>
                     <p id="route-duration"></p>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'nearbymountains/js/map.js' %}"></script>
 </body>
 </html>

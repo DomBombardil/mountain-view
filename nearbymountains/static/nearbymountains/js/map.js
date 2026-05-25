@@ -11,14 +11,36 @@ const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
 const routeProfileEl = document.getElementById("route-profile");
 
-const parkingIcon = L.icon({
-    iconUrl: "/static/nearbymountains/icons/marker-icon-green.png",
-    shadowUrl: "/static/nearbymountains/icons/marker-shadow.png",
+const mountainIcon = L.divIcon({
+    className: "",
+    html: '<span class="map-marker mountain-marker"><i class="bi bi-triangle-fill"></i></span>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -30]
+});
 
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+const parkingIcon = L.divIcon({
+    className: "",
+    html: '<span class="map-marker parking-marker"><i class="bi bi-car-front-fill"></i></span>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -30]
+});
+
+const userIcon = L.divIcon({
+    className: "",
+    html: '<span class="map-marker user-marker"><i class="bi bi-person-standing"></i></span>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -30]
+});
+
+const trailAccessIcon = L.divIcon({
+    className: "",
+    html: '<span class="map-marker trail-marker"><i class="bi bi-signpost-split-fill"></i></span>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -30]
 });
 
 // Buttons
@@ -93,7 +115,9 @@ locateBtn.addEventListener("click", function() {
                 map.removeLayer(userMarker);
             }
 
-            userMarker = L.marker([latitude, longitude])
+            userMarker = L.marker([latitude, longitude], {
+                icon: userIcon
+            })
                 .addTo(map)
                 .bindPopup("You are here.")
                 .openPopup();
@@ -110,8 +134,8 @@ locateBtn.addEventListener("click", function() {
 function selectMountain(mountain) {
     selectedMountain = mountain;
     selectedNameEl.textContent = mountain.name;
-    selectedElevationEl.textContent = `Elevation: ${mountain.elevation} m`;
-    selectedDistanceEl.textContent = `Distance ${mountain.distance_km} km`;
+    selectedElevationEl.textContent = `${mountain.elevation} m`;
+    selectedDistanceEl.textContent = `${mountain.distance_km} km`;
 }
 
 
@@ -135,7 +159,9 @@ function renderTrailAccessMarkers(trailPoints){
     clearTrailAccessMarkers();
 
     trailPoints.forEach(function(point){
-        const marker = L.marker([point.latitude, point.longitude])
+        const marker = L.marker([point.latitude, point.longitude], {
+            icon: trailAccessIcon
+        })
         .addTo(map)
         .bindPopup(
             `<strong>${point.name}</strong><br>
@@ -285,8 +311,8 @@ function clearRoute() {
 function resetSelectedMountainState() {
     selectedMountain = null;
     selectedNameEl.textContent = "None";
-    selectedElevationEl.textContent = "";
-    selectedDistanceEl.textContent = "";
+    selectedElevationEl.textContent = "-";
+    selectedDistanceEl.textContent = "-";
 }
 
 function resetMarker(marker) {
@@ -330,12 +356,15 @@ function loadNearbyMountains(latitude, longitude, radius) {
             const markerMap = new Map(); 
 
             data.mountains.forEach(function(mountain) {
-                const marker = L.marker([mountain.latitude, mountain.longitude])
+                const marker = L.marker([mountain.latitude, mountain.longitude], {
+                    icon: mountainIcon
+                })
                     .addTo(map)
                     .bindPopup(
                         `<strong>${mountain.name}</strong><br>
                         Elevation: ${mountain.elevation} m<br>
-                        Distance: ${mountain.distance_km} km`
+                        Distance: ${mountain.distance_km} km<br>
+                        <button type="button" class="find-parking-near-mountain-btn">Find parking nearby</button>`
                     );
                 
                 marker.on("click", function() {
@@ -348,6 +377,20 @@ function loadNearbyMountains(latitude, longitude, radius) {
                             setActiveListItem(item);
                         }
                     });
+                });
+
+                marker.on("popupopen", function(event) {
+                    const popupElement = event.popup.getElement();
+                    const parkingBtn = popupElement.querySelector(".find-parking-near-mountain-btn");
+
+                    if (parkingBtn) {
+                        parkingBtn.addEventListener("click", function() {
+                            resetMarker(marker);
+                            selectMountain(mountain);
+                            map.setView([mountain.latitude, mountain.longitude], 13);
+                            findNearbyParking();
+                        });
+                    }
                 });
             
                 mountainMarkers.push(marker);
@@ -369,10 +412,13 @@ function renderMountainList(mountains, markerMap) {
     mountains.forEach(function(mountain) {
         const listItem = document.createElement("li");
 
-        listItem.innerHTML = ` 
-            <strong>${mountain.name}</strong><br>
-            Elevation: ${mountain.elevation} m<br>
-            Distance: ${mountain.distance_km} km
+        listItem.innerHTML = `
+            <span class="list-marker"><i class="bi bi-triangle-fill"></i></span>
+            <span class="list-content">
+                <strong>${mountain.name}</strong>
+                <span>Elevation: ${mountain.elevation} m</span>
+                <span>Distance: ${mountain.distance_km} km</span>
+            </span>
             `;
 
 
@@ -421,7 +467,9 @@ function searchTypedLocation() {
                 map.removeLayer(userMarker);
             }
 
-            userMarker = L.marker([latitude, longitude])
+            userMarker = L.marker([latitude, longitude], {
+                icon: userIcon
+            })
                 .addTo(map)
                 .bindPopup(`Searched location: ${data.display_name}`)
                 .openPopup();
@@ -703,7 +751,7 @@ function showHikingRoutesFromParking() {
                         `<strong>Hiking route</strong><br>
                         Distance: ${distance}<br>
                         Duration: ${duration}<br>
-                        Elevatio gain: ${ascent !== undefined ? Math.round(ascent) + " m" : "Unknown"}<br>
+                        Elevation gain: ${ascent !== undefined ? Math.round(ascent) + " m" : "Unknown"}<br>
                         Elevation loss: ${descent !==undefined ? Math.round(descent) + " m" : "Unknown"}<br>
                         Intensity: ${intensity}`
                     );

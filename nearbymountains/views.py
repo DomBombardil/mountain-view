@@ -527,6 +527,6 @@ def trail_access_points_api(request):
             "distance_from_parking_km": round(distance_km, 1),
         })
 
-        trail_points.sort(key=lambda p: p["distance_from_parking_km"])
+    trail_points.sort(key=lambda p: p["distance_from_parking_km"])
 
     return JsonResponse({"trail_points": trail_points[:20]})

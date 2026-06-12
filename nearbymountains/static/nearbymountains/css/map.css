@@ -414,6 +414,63 @@ h2 {
     background: #6b7280;
 }
 
+.route-legend {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 14px;
+    border: 1px solid rgba(220, 229, 220, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--shadow);
+    font-weight: 700;
+}
+
+.legend-line {
+    display: inline-block;
+    width: 28px;
+    height: 4px;
+    margin-right: 6px;
+    border-radius: 999px;
+    vertical-align: middle;
+}
+
+.legend-fastest {
+    background: green;
+}
+
+.legend-medium {
+    background: blue;
+}
+
+.legend-slowest {
+    background: orange;
+}
+
+.route-summary-card {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+
+.route-summary-list {
+    display: grid;
+    gap: 8px;
+}
+
+.route-summary-item {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-soft);
+}
+
+.route-summary-item strong {
+    color: var(--green-dark);
+}
+
 .leaflet-popup-content-wrapper {
     border-radius: 8px;
     box-shadow: 0 14px 38px rgba(23, 35, 27, 0.2);

@@ -67,6 +67,12 @@
 
             <div id="map"></div>
 
+            <div class="route-legend">
+                <span><span class = "legend-line legend-fastest"></span>Fastest</span>
+                <span><span class = "legend-line legend-medium"></span>Medium</span>
+                <span><span class = "legend-line legend-slowest"></span>Slowest</span>
+            </div>
+
             <div id="selected-mountain" class="selected-mountain">
                 <div class="selected-header">
                     <div>
@@ -119,6 +125,11 @@
                 <div id="route-info" class="route-info">
                     <p id="route-distance"></p>
                     <p id="route-duration"></p>
+                </div>
+
+                <div id="route-summary-card" class="route-summary-card d-none">
+                    <p class="eyebrow">Hiking route summary</p>
+                    <div id="route-summary-list" class="route-summary-list"></div>
                 </div>
             </div>
         </section>

@@ -10,6 +10,8 @@ const locationInput = document.getElementById("location-input");
 const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
 const routeProfileEl = document.getElementById("route-profile");
+const routeSummaryCardEl = document.getElementById("route-summary-card");
+const routeSummaryListEl = document.getElementById("route-summary-list");
 
 const mountainIcon = L.divIcon({
     className: "",
@@ -55,6 +57,16 @@ let selectedMountain = null;
 let routeLine = null;
 let parkingMarkers = [];
 let selectedParking = null;
+
+const hikingRouteBaseStyle = {
+    weight: 5,
+    opacity: 0.55
+};
+
+const hikingRouteHoverStyle = {
+    weight: 8,
+    opacity: 0.95
+};
 
 const map = L.map("map").setView([47.8, 12.6], 9);
 
@@ -263,6 +275,28 @@ function getRouteIntensity(distanceMeters, ascentMeters) {
     return "Hard";
 }
 
+function getHikingRouteColor(feature, sortedDurations) {
+    const duration = feature.properties.summary.duration;
+
+    if (duration === sortedDurations[0]) {
+        return "green";
+    }
+
+    if (duration === sortedDurations[sortedDurations.length - 1]) {
+        return "orange";
+    }
+
+    return "blue";
+}
+
+function getHikingRouteStyle(feature, sortedDurations) {
+    return {
+        color: getHikingRouteColor(feature, sortedDurations),
+        weight: hikingRouteBaseStyle.weight,
+        opacity: hikingRouteBaseStyle.opacity
+    };
+}
+
 function calculateElevationStats(coordinates) {
     let ascent = 0;
     let descent = 0; 
@@ -295,6 +329,11 @@ function clearRouteInfo() {
     routeDurationEl.textContent = "";
 }
 
+function clearRouteSummary() {
+    routeSummaryCardEl.classList.add("d-none");
+    routeSummaryListEl.innerHTML = "";
+}
+
 function clearRouteLine() {
     if (routeLine) {
         map.removeLayer(routeLine);
@@ -305,6 +344,7 @@ function clearRouteLine() {
 function clearRoute() {
     clearRouteInfo();
     clearRouteLine();
+    clearRouteSummary();
     messageEl.textContent = "Route cleared.";
 }
 
@@ -714,23 +754,11 @@ function showHikingRoutesFromParking() {
                 return a - b;
             })
 
+            renderRouteSummary(data.features, sortedDurations);
+
             routeLine = L.geoJSON(data, {
                 style: function(feature) {
-                    const duration = feature.properties.summary.duration;
-
-                    let color = "blue";
-
-                    if (duration === sortedDurations[0]) {
-                        color = "green";
-                    } else if (duration === sortedDurations[sortedDurations.length - 1]) {
-                        color = "orange";
-                    }
-
-                    return {
-                        color: color,
-                        weight: 5,
-                        opacity: 0.8,
-                    };
+                    return getHikingRouteStyle(feature, sortedDurations);
                 },
 
                 onEachFeature: function(feature, layer) {
@@ -755,6 +783,16 @@ function showHikingRoutesFromParking() {
                         Elevation loss: ${descent !==undefined ? Math.round(descent) + " m" : "Unknown"}<br>
                         Intensity: ${intensity}`
                     );
+
+                    layer.on({
+                        mouseover: function(event) {
+                            event.target.setStyle(hikingRouteHoverStyle);
+                            event.target.bringToFront();
+                        },
+                        mouseout: function(event) {
+                            event.target.setStyle(getHikingRouteStyle(feature, sortedDurations));
+                        }
+                    });
                 }
             }).addTo(map);
 
@@ -778,6 +816,35 @@ function showHikingRoutesFromParking() {
             console.error(error);
             messageEl.textContent = "Could not load hike routes.";
         });
+}
+
+function renderRouteSummary(features, sortedDurations) {
+    clearRouteSummary();
+
+    features.forEach(function(feature, index) {
+        const summary = feature.properties.summary;
+        const elevationStats = calculateElevationStats(feature.geometry.coordinates);
+
+        const ascent = elevationStats ? elevationStats.ascent : null;
+        const durationSeconds = estimateHikingDuration(summary.distance, ascent);
+        const intensity = getRouteIntensity(summary.distance, ascent);
+        const color = getHikingRouteColor(feature, sortedDurations);
+
+        const item = document.createElement("div");
+        item.classList.add("route-summary-item");
+
+        item.innerHTML = `
+            <strong>Route ${index + 1} · ${color}</strong>
+            <span>Distance: ${formatDistance(summary.distance)}</span>
+            <span>Estimated time: ${formatDuration(durationSeconds)}</span>
+            <span>Elevation gain: ${ascent !== null ? Math.round(ascent) + " m" : "unknown"}</span>
+            <span>Intensity: ${intensity}</span>
+            `;
+
+            routeSummaryListEl.appendChild(item)
+    });
+
+    routeSummaryCardEl.classList.remove("d-none");
 }
 
 function fetchData(url) {

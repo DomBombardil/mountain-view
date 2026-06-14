@@ -9,7 +9,6 @@ const mountainlistEl = document.getElementById("mountain-list");
 const locationInput = document.getElementById("location-input");
 const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
-const routeProfileEl = document.getElementById("route-profile");
 const routeSummaryCardEl = document.getElementById("route-summary-card");
 const routeSummaryListEl = document.getElementById("route-summary-list");
 
@@ -535,8 +534,8 @@ function showRouteToSelectedMountain() {
 
     clearRouteInfo();
 
-    const routeProfile = routeProfileEl.value;
-    const routeProfileLabel = routeProfile === "driving-car" ? "driving" : "hiking";
+    const routeProfile = "foot-hiking";
+    const routeProfileLabel = "hiking"; 
 
     messageEl.textContent = `Loading ${routeProfileLabel} route...`;
 

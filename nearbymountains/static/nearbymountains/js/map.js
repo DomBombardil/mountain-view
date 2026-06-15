@@ -755,6 +755,28 @@ function findTrailAccessPoints(){
             });
 }
 
+function forceRouteToEndAtSelectedMountain(feature) {
+    const coordinates = feature.geometry.coordinates;
+    const last = coordinates[coordinates.length - 1];
+
+    const mountainLng = selectedMountain.longitude;
+    const mountainLat = selectedMountain.latitude;
+    const mountainElevation = selectedMountain.elevation;
+
+    const distanceToPeakKm = calculateDistanceBetweenCoordinates(
+        last,
+        [mountainLng, mountainLat, mountainElevation]
+    );
+
+    if (distanceToPeakKm > 0.05) {
+        coordinates.push([
+            mountainLng,
+            mountainLat,
+            mountainElevation
+        ]);
+    }
+}
+
 function showHikingRoutesFromParking() {
     if (!selectedMountain) {
         messageEl.textContent = "Please select a mountain first.";
@@ -780,8 +802,6 @@ function showHikingRoutesFromParking() {
     fetchData(url)
         .then(function(data) {
             clearRouteLine();
-            console.log(data.features[0].properties.summary);
-            console.log("First Coordinate:", data.features[0].geometry.coordinates[0]);
 
             const durations = data.features.map(function(feature) {
                 return feature.properties.summary.duration;
@@ -790,6 +810,10 @@ function showHikingRoutesFromParking() {
             const sortedDurations = [...durations].sort(function(a, b) {
                 return a - b;
             })
+
+            data.features.forEach(function(feature) {
+                forceRouteToEndAtSelectedMountain(feature);
+            });
 
             renderRouteSummary(data.features, sortedDurations);
 
@@ -862,11 +886,14 @@ function showHikingRoutesFromParking() {
 function renderRouteSummary(features, sortedDurations) {
     clearRouteSummary();
 
+    routeSummaryCardEl.classList.remove("d-none");
+
     features.forEach(function(feature, index) {
         const summary = feature.properties.summary;
         const elevationStats = calculateElevationStats(feature.geometry.coordinates);
 
         const ascent = elevationStats ? elevationStats.ascent : null;
+        const descent = elevationStats ? elevationStats.descent : null;
         const durationSeconds = estimateHikingDuration(summary.distance, ascent);
         const intensity = getRouteIntensity(summary.distance, ascent);
         const color = getHikingRouteColor(feature, sortedDurations);
@@ -875,17 +902,24 @@ function renderRouteSummary(features, sortedDurations) {
         item.classList.add("route-summary-item");
 
         item.innerHTML = `
-            <strong>Route ${index + 1} · ${color}</strong>
-            <span>Distance: ${formatDistance(summary.distance)}</span>
-            <span>Estimated time: ${formatDuration(durationSeconds)}</span>
-            <span>Elevation gain: ${ascent !== null ? Math.round(ascent) + " m" : "unknown"}</span>
-            <span>Intensity: ${intensity}</span>
+            <div class="route-summary-text">
+                <strong>Route ${index + 1} · ${color}</strong>
+                <span>Distance: ${formatDistance(summary.distance)}</span>
+                <span>Estimated time: ${formatDuration(durationSeconds)}</span>
+                <span>Elevation gain: ${ascent !== null ? Math.round(ascent) + " m" : "unknown"}</span>
+                <span>Elevation loss: ${descent !== null ? Math.round(descent) + " m" : "unknown"}</span>
+                <span>Intensity: ${intensity}</span>
+            </div>
+            <div class="mini-elevation-panel" aria-label="Mini elevation profile">
+                <canvas class="mini-elevation-chart" id="mini-elevation-chart-${index}"></canvas>
+            </div>
             `;
 
-            routeSummaryListEl.appendChild(item)
+            routeSummaryListEl.appendChild(item);
+            requestAnimationFrame(function() {
+                renderMiniElevationChart(feature, `mini-elevation-chart-${index}`);
+            });
     });
-
-    routeSummaryCardEl.classList.remove("d-none");
 }
 
 function buildElevationProfileData(coordinates) {
@@ -912,8 +946,6 @@ function buildElevationProfileData(coordinates) {
 
 function renderElevationProfile(feature) {
     const profileData = buildElevationProfileData(feature.geometry.coordinates);
-    console.log("Profile first:", profileData[0]);
-    console.log("Profile last:", profileData[profileData.length - 1]);
 
     elevationCardEl.classList.remove("d-none");
 
@@ -928,7 +960,7 @@ function renderElevationProfile(feature) {
                 label: "Elevation",
                 data: profileData,
                 parsing: false,
-                tension: 0.25,
+                tension: 0,
                 fill: true
             }]
         },
@@ -971,6 +1003,94 @@ function renderElevationProfile(feature) {
                 const coord = profileData[index].coordinate;
 
                 moveElevationHoverMarker(coord);
+            }
+        }
+    });
+}
+
+function renderMiniElevationChart(feature, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const profileData = buildElevationProfileData(feature.geometry.coordinates);
+    const elevations = profileData.map(function(point) {
+        return point.y;
+    });
+    const minElevation = Math.min(...elevations);
+    const maxElevation = Math.max(...elevations);
+    const elevationPadding = Math.max(10, (maxElevation - minElevation) * 0.12);
+
+    new Chart(canvas, {
+        type: "line",
+        data: {
+            datasets: [{
+                label: "Elevation",
+                data: profileData,
+                parsing: false,
+                tension: 0,
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 2,
+                segment: {
+                    borderColor: function(context) {
+                        const start = context.p0.parsed.y;
+                        const end = context.p1.parsed.y;
+
+                        return end >= start ? "#1f7a4d" : "#c87915";
+                    }
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: {
+                line: {
+                    borderJoinStyle: "round"
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${Math.round(context.raw.y)} m`;
+                        }
+                    }
+                }
+            },
+            scales: {
+
+                x: {
+                    type: "linear",
+                    grid: {
+                        display: false
+                    },
+                    border: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 4,
+                        autoSkip: true,
+                        callback: function(value) {
+                            return `${Number(value).toFixed(1)} km`;
+                        }
+                    }
+                },
+
+                y: {
+                    min: Math.floor(minElevation - elevationPadding),
+                    max: Math.ceil(maxElevation + elevationPadding),
+                    grid: {
+                        color: "rgba(220, 229, 220, 0.8)"
+                    },
+                    ticks: {
+                        maxTicksLimit: 4,
+                        callback: function(value) {
+                            return `${Math.round(value)} m`;
+                        }
+                    }
+                }
             }
         }
     });

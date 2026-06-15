@@ -191,7 +191,7 @@ h2 {
 
 .toolbar {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(128px, 170px) auto;
+    grid-template-columns: 2fr 160px 160px 160px auto; 
     gap: 14px;
     align-items: end;
     padding: 16px;
@@ -228,6 +228,10 @@ h2 {
     flex-wrap: wrap;
     gap: 10px;
 }
+
+.toolbar-actions {
+    align-items: end;
+} 
 
 .btn {
     display: inline-flex;
@@ -506,6 +510,18 @@ h2 {
     .sidebar {
         position: static;
         max-height: 320px;
+    }
+
+    .toolbar {
+    grid-template-columns: 1fr 1fr;
+    }
+
+    .location-field {
+        grid-column: 1 / -1;
+    }
+
+    .toolbar-actions {
+        grid-column: 1 / -1;
     }
 }
 

@@ -49,6 +49,22 @@
                     </div>
                 </div>
 
+                <div class="field-group">
+                    <label for="min-elevation" class="form-label">Min elevation</label>
+                    <div class="input-group">
+                        <input type="number" id="min-elevation" class="form-control" placeholder="1500">
+                        <span class="input-group-text">m</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="max-elevation" class="form-label">Max elevation</label>
+                    <div class="input-group">
+                        <input type="number" id="max-elevation" class="form-control" placeholder="2000">
+                        <span class="input-group-text">m</span>
+                    </div>
+                </div>
+
                 <div class="toolbar-actions">
                     <button id="search-location-btn" class="btn btn-primary" type="button">
                         <i class="bi bi-compass"></i>
@@ -123,12 +139,19 @@
                     <p class="eyebrow">Hiking route summary</p>
                     <div id="route-summary-list" class="route-summary-list"></div>
                 </div>
+
+                <div id="elevation-card" class="route-summary-card d-none">
+                    <p class="eyebrow">Elevation profile</p>
+                    <canvas id="elevation-chart"></canvas>
+                </div>
+
             </div>
         </section>
     </main>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{% static 'nearbymountains/js/map.js' %}"></script>
 </body>
 </html>

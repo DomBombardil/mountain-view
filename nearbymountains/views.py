@@ -39,6 +39,8 @@ def nearby_mountains_api(request):
     latitude = request.GET.get("latitude")
     longitude = request.GET.get("longitude")
     radius = request.GET.get("radius", 50)
+    min_elevation = request.GET.get("min_elevation")
+    max_elevation = request.GET.get("max_elevation")
 
     if not latitude or not longitude:
         return JsonResponse(
@@ -80,8 +82,15 @@ def nearby_mountains_api(request):
             distance=Distance("location", user_location)
         )
         .filter(location__distance_lte=(user_location, D(km=radius)))
-        .order_by("distance")[:20]
     )
+
+    if min_elevation:
+        mountains = mountains.filter(elevation__gte=float(min_elevation))
+
+    if max_elevation:
+        mountains = mountains.filter(elevation__lte=float(max_elevation))
+
+    mountains = mountains.order_by("distance")[:20]
 
     results = []
     for mountain in mountains:
@@ -245,12 +254,17 @@ def mountain_route_api(request):
         "Authorization": api_key,
         "Content-Type": "application/json",
     }
+    if profile == "driving-car":
+        radiuses = [350, 3000]
+    else:
+        radiuses = [1000, 100]
+
     payload = {
         "coordinates": [
             [start_lng, start_lat], 
             [end_lng, end_lat],
         ],
-        "radiuses": [350, 3000],
+        "radiuses": radiuses,
         "elevation": True,
     }
 

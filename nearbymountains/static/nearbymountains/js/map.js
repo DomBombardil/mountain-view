@@ -7,10 +7,14 @@ const selectedElevationEl = document.getElementById("selected-elevation");
 const selectedDistanceEl = document.getElementById("selected-distance");
 const mountainlistEl = document.getElementById("mountain-list");
 const locationInput = document.getElementById("location-input");
+const minElevationInput = document.getElementById("min-elevation");
+const maxElevationInput = document.getElementById("max-elevation");
 const routeDistanceEl = document.getElementById("route-distance");
 const routeDurationEl = document.getElementById("route-duration");
 const routeSummaryCardEl = document.getElementById("route-summary-card");
 const routeSummaryListEl = document.getElementById("route-summary-list");
+const elevationCardEl = document.getElementById("elevation-card");
+const elevationChartCanvas = document.getElementById("elevation-chart");
 
 const mountainIcon = L.divIcon({
     className: "",
@@ -43,6 +47,9 @@ const trailAccessIcon = L.divIcon({
     iconAnchor: [17, 34],
     popupAnchor: [0, -30]
 });
+
+let elevationChart = null;
+let elevationHoverMarker = null;
 
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
@@ -323,6 +330,28 @@ function calculateElevationStats(coordinates) {
     };
 }
 
+function calculateDistanceBetweenCoordinates(coordA, coordB) {
+    const lat1 = coordA[1];
+    const lng1 = coordA[0];
+    const lat2 = coordB[1];
+    const lng2 = coordB[0];
+
+    const earthRadiusKm = 6371;
+
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * c;
+}
+
 function clearRouteInfo() {
     routeDistanceEl.textContent = "";
     routeDurationEl.textContent = "";
@@ -373,7 +402,16 @@ function clearParkingMarkers() {
 
 // Rendering Data 
 function loadNearbyMountains(latitude, longitude, radius) {
-    const url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
+    let url = `/api/nearby-mountains/?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
+
+    if (minElevationInput.value) {
+        url += `&min_elevation=${minElevationInput.value}`;
+    }
+
+    if (maxElevationInput.value) {
+        url += `&max_elevation=${maxElevationInput.value}`;
+    }
+
     clearRouteInfo();
     if (selectedMarker) {
         selectedMarker = null;
@@ -792,6 +830,10 @@ function showHikingRoutesFromParking() {
                             event.target.setStyle(getHikingRouteStyle(feature, sortedDurations));
                         }
                     });
+
+                    layer.on("click", function() {
+                        renderElevationProfile(feature);
+                    });
                 }
             }).addTo(map);
 
@@ -844,6 +886,112 @@ function renderRouteSummary(features, sortedDurations) {
     });
 
     routeSummaryCardEl.classList.remove("d-none");
+}
+
+function buildElevationProfileData(coordinates) {
+    const profile = [];
+    let cumulativeDistanceKm = 0;
+
+    for (let i = 0; i < coordinates.length; i++) {
+        if (i > 0) {
+            cumulativeDistanceKm += calculateDistanceBetweenCoordinates(
+                coordinates[i-1],
+                coordinates[i]
+            );
+        }
+
+        profile.push({
+            x: Number(cumulativeDistanceKm.toFixed(2)),
+            y: coordinates[i][2],
+            coordinate: coordinates[i]
+        });
+    }
+
+    return profile
+}
+
+function renderElevationProfile(feature) {
+    const profileData = buildElevationProfileData(feature.geometry.coordinates);
+    console.log("Profile first:", profileData[0]);
+    console.log("Profile last:", profileData[profileData.length - 1]);
+
+    elevationCardEl.classList.remove("d-none");
+
+    if (elevationChart) {
+        elevationChart.destroy();
+    }
+
+    elevationChart = new Chart(elevationChartCanvas, {
+        type: "line",
+        data: {
+            datasets: [{
+                label: "Elevation",
+                data: profileData,
+                parsing: false,
+                tension: 0.25,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: "nearest",
+                intersect: false
+            },
+            scales: {
+                x: {
+                    type: "linear",
+                    title: {
+                        display: true,
+                        text: "Distance (km)"
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: "Elevation (m)"
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Elevation: ${Math.round(context.raw.y)} ,`;
+                        }
+                    }
+                }
+            },
+            onHover: function(event, elements) {
+                if (elements.length === 0) {
+                    return;
+                }
+
+                const index = elements[0].index;
+                const coord = profileData[index].coordinate;
+
+                moveElevationHoverMarker(coord);
+            }
+        }
+    });
+}
+
+function moveElevationHoverMarker(coord) {
+    const lat = coord[1];
+    const lng = coord[0];
+    const elevation = coord[2];
+
+    if (!elevationHoverMarker) {
+        elevationHoverMarker = L.circleMarker([lat, lng], {
+            radius: 7,
+            weight: 3,
+            fillOpacity: 0.9
+        }).addTo(map);
+    } else {
+        elevationHoverMarker.setLatLng([lat, lng]);
+    }
+
+    elevationHoverMarker.bindTooltip(`${Math.round(elevation)} m`).openTooltip();
 }
 
 function fetchData(url) {

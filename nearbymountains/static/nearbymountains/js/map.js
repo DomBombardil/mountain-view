@@ -50,6 +50,7 @@ const trailAccessIcon = L.divIcon({
 
 let elevationChart = null;
 let elevationHoverMarker = null;
+let currentMountains = [];
 
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
@@ -74,7 +75,17 @@ const hikingRouteHoverStyle = {
     opacity: 0.95
 };
 
-const map = L.map("map").setView([47.8, 12.6], 9);
+const map = L.map("map", {
+    scrollWheelZoom: false
+}).setView([47.8, 12.6], 9);
+
+map.on("click", function() {
+    map.scrollWheelZoom.enable();
+});
+
+map.on("mouseout", function() {
+    map.scrollWheelZoom.disable();
+});
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors"
@@ -101,10 +112,15 @@ locationInput.addEventListener("keydown", function(event) {
 });
 
 clearRouteBtn.addEventListener("click", function() {
+    map.closePopup();
+    clearParkingMarkers();
+    elevationCardEl.classList.add("d-none");
     clearRoute();
+    messageEl.textContent = "Route cleared.";
 });
 
 findParkingBtn.addEventListener("click", function() {
+    map.closePopup();
     findNearbyParking();
 })
 
@@ -171,6 +187,13 @@ function clearTrailAccessMarkers(){
     });
 
     trailAccessMarkers = [];
+}
+
+function clearElevationHoverMarker() {
+    if (elevationHoverMarker) {
+        map.removeLayer(elevationHoverMarker);
+        elevationHoverMarker = null;
+    }
 }
 
 function renderTrailAccessMarkers(trailPoints){
@@ -373,6 +396,16 @@ function clearRoute() {
     clearRouteInfo();
     clearRouteLine();
     clearRouteSummary();
+    clearElevationHoverMarker();
+
+    if (currentStartPoint && currentMountains.length > 0) {
+        fitMapToResults(
+            currentStartPoint.latitude,
+            currentStartPoint.longitude,
+            currentMountains
+        );
+    }
+
     messageEl.textContent = "Route cleared.";
 }
 
@@ -429,6 +462,7 @@ function loadNearbyMountains(latitude, longitude, radius) {
             }
 
             messageEl.textContent = `Found ${data.mountains.length} nearby mountains.`;
+            currentMountains = data.mountains;
 
             const markerMap = new Map(); 
 
@@ -462,6 +496,7 @@ function loadNearbyMountains(latitude, longitude, radius) {
 
                     if (parkingBtn) {
                         parkingBtn.addEventListener("click", function() {
+                            marker.closePopup();
                             resetMarker(marker);
                             selectMountain(mountain);
                             map.setView([mountain.latitude, mountain.longitude], 13);
@@ -638,6 +673,8 @@ function renderParkingMarkers(parkings) {
             const routeBtn = popupElement.querySelector(".route-to-parking-btn");
             if (routeBtn) {
                 routeBtn.addEventListener("click", function() {
+                    marker.closePopup();
+
                     selectedParking = parking;
                     showRouteToSelectedParking();
                 });
@@ -646,6 +683,8 @@ function renderParkingMarkers(parkings) {
             const hikingBtn = popupElement.querySelector(".show-hiking-routes-btn");
             if (hikingBtn) {
                 hikingBtn.addEventListener("click", function(){
+                    marker.closePopup();
+
                     selectedParking = parking;
                     showHikingRoutesFromParking();
                 });
@@ -961,7 +1000,19 @@ function renderElevationProfile(feature) {
                 data: profileData,
                 parsing: false,
                 tension: 0,
-                fill: true
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                borderWidth: 3,
+                backgroundColor: "rgba(31, 122, 77, 0.16)",
+                segment: {
+                    borderColor: function(context) {
+                        const start = context.p0.parsed.y;
+                        const end = context.p1.parsed.y;
+
+                        return end >= start ? "#1f7a4d" : "#c87915";
+                    }
+                }
             }]
         },
         options: {
@@ -970,26 +1021,61 @@ function renderElevationProfile(feature) {
                 mode: "nearest",
                 intersect: false
             },
-            scales: {
-                x: {
-                    type: "linear",
-                    title: {
-                        display: true,
-                        text: "Distance (km)"
+            plugins: {
+                legend: {
+                    labels: {
+                        color: "#17231b",
+                        font: {
+                            weight: "700"
+                        }
                     }
                 },
-                y: {
-                    title: {
-                        display: true,
-                        text: "Elevation (m)"
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return `${context[0].raw.x.toFixed(2)} km`;
+                        },
+                        label: function(context) {
+                            return `Elevation: ${Math.round(context.raw.y)} m`;
+                        }
                     }
                 }
             },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Elevation: ${Math.round(context.raw.y)} ,`;
+            scales: {
+                x: {
+                    type: "linear",
+                    grid: {
+                        color: "rgba(220, 229, 220, 0.8)"
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return `${Number(value).toFixed(1)} km`;
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: "Distance",
+                        color: "#687369",
+                        font: {
+                            weight: "700"
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: "rgba(220, 229, 220, 0.8)"
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return `${Math.round(value)} m`;
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: "Elevation",
+                        color: "#687369",
+                        font: {
+                            weight: "700"
                         }
                     }
                 }

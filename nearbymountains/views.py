@@ -544,3 +544,63 @@ def trail_access_points_api(request):
     trail_points.sort(key=lambda p: p["distance_from_parking_km"])
 
     return JsonResponse({"trail_points": trail_points[:20]})
+
+@require_GET
+def mountain_weather_api(request):
+    latitude = request.GET.get("latitude")
+    longitude = request.GET.get("longitude")
+
+    if not latitude or not longitude:
+        return JsonResponse(
+            {"error": "Latitude and longitude are required."},
+            status=400
+        )
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    
+    except ValueError:
+        return JsonResponse(
+            {"error": "Latitude and longitude must be a valid number."},
+            status=400
+        )
+
+    url = "https://api.open-meteo.com/v1/forecast"
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": "temperature_2m,wind_speed_10m,precipitation,weather_code",
+        "hourly": "precipitation_probability",
+        "forecast_days": 1,
+        "timezone": "auto",
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+    except requests.RequestException:
+        return JsonResponse(
+            {"error": "Could not retrieve weather data."},
+            status=502
+        )
+
+    current = data.get("current", {})
+    hourly = data.get("hourly", {})
+
+    precipitation_probabilities = hourly.get("precipitation_probability", [])
+    next_precipitation_probability = None
+
+    if precipitation_probabilities:
+        next_precipitation_probability = precipitation_probabilities[0]
+
+    return JsonResponse({
+        "temperature": current.get("temperature_2m"),
+        "wind_speed": current.get("wind_speed_10m"),
+        "precipitation": current.get("precipitation"),
+        "precipitation_probability": next_precipitation_probability,
+        "weather_code": current.get("weather_code"),
+    })

@@ -79,9 +79,8 @@ const map = L.map("map", {
     scrollWheelZoom: false
 }).setView([47.8, 12.6], 9);
 
-map.on("click", function() {
-    map.scrollWheelZoom.enable();
-});
+map.on("click", enableMapScrollZoom);
+map.on("dragstart", enableMapScrollZoom);
 
 map.on("mouseout", function() {
     map.scrollWheelZoom.disable();
@@ -172,6 +171,9 @@ function selectMountain(mountain) {
     selectedDistanceEl.textContent = `${mountain.distance_km} km`;
 }
 
+function enableMapScrollZoom() {
+    map.scrollWheelZoom.enable();
+}
 
 function clearMountainMarkers() {
     mountainMarkers.forEach(function(marker) {
@@ -277,32 +279,30 @@ function estimateHikingDuration(distanceMeters, ascentMeters) {
     return totalSeconds;
 }
 
-function getRouteIntensity(distanceMeters, ascentMeters) {
+function getRouteIntensity(distanceMeters, ascentMeters, descentMeters, durationSeconds) {
     const distanceKm = distanceMeters / 1000;
+    const ascent = ascentMeters || 0;
+    const descent = descentMeters || 0;
+    const durationHours = durationSeconds / 3600;
 
-    if (ascentMeters === null || ascentMeters === undefined) {
-        if (distanceKm < 6) {
-            return "Easy";
-        }
-    
+    let score = 0;
 
-        if (distanceKm < 12) {
-            return "Moderate";
-        }
+    score += distanceKm * 1.2;
+    score += ascent / 120;
+    score += descent / 250;
+    score += durationHours * 2;
 
-        return "Hard";
-    }
-
-    if (distanceKm < 6 && ascentMeters < 300) {
+    if (score < 12) {
         return "Easy";
     }
 
-    if (distanceKm < 12 && ascentMeters < 800) {
+    if (score < 22) {
         return "Moderate";
     }
-
+    
     return "Hard";
 }
+
 
 function getHikingRouteColor(feature, sortedDurations) {
     const duration = feature.properties.summary.duration;
@@ -870,10 +870,14 @@ function showHikingRoutesFromParking() {
 
                     const ascent = elevationStats ? elevationStats.ascent : null;
                     const descent = elevationStats ? elevationStats.descent : null;
-                    const intensity = getRouteIntensity(summary.distance, ascent);
 
                     const estimatedDurationSeconds = estimateHikingDuration(summary.distance, ascent);
                     const duration = formatDuration(estimatedDurationSeconds);
+                    const intensity = getRouteIntensity(
+                        summary.distance, 
+                        ascent, 
+                        descent, 
+                        estimatedDurationSeconds);
 
                     layer.bindPopup(
                         `<strong>Hiking route</strong><br>
@@ -934,7 +938,11 @@ function renderRouteSummary(features, sortedDurations) {
         const ascent = elevationStats ? elevationStats.ascent : null;
         const descent = elevationStats ? elevationStats.descent : null;
         const durationSeconds = estimateHikingDuration(summary.distance, ascent);
-        const intensity = getRouteIntensity(summary.distance, ascent);
+        const intensity = getRouteIntensity(
+            summary.distance, 
+            ascent, 
+            descent, 
+            durationSeconds);
         const color = getHikingRouteColor(feature, sortedDurations);
 
         const item = document.createElement("div");

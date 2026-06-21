@@ -591,11 +591,24 @@ def mountain_weather_api(request):
     current = data.get("current", {})
     hourly = data.get("hourly", {})
 
+    hourly_times = hourly.get("time", [])
     precipitation_probabilities = hourly.get("precipitation_probability", [])
     next_precipitation_probability = None
 
     if precipitation_probabilities:
-        next_precipitation_probability = precipitation_probabilities[0]
+        current_hour = str(current.get("time", ""))[:13]
+        matching_hour_index = next(
+            (
+                index
+                for index, timestamp in enumerate(hourly_times)
+                if str(timestamp)[:13] == current_hour
+            ),
+            0,
+        )
+        if matching_hour_index < len(precipitation_probabilities):
+            next_precipitation_probability = precipitation_probabilities[
+                matching_hour_index
+            ]
 
     return JsonResponse({
         "temperature": current.get("temperature_2m"),

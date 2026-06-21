@@ -15,6 +15,14 @@ const routeSummaryCardEl = document.getElementById("route-summary-card");
 const routeSummaryListEl = document.getElementById("route-summary-list");
 const elevationCardEl = document.getElementById("elevation-card");
 const elevationChartCanvas = document.getElementById("elevation-chart");
+const elevationProfileTitleEl = document.getElementById("elevation-profile-title");
+const weatherCardEl = document.getElementById("weather-card");
+const weatherIconEl = document.getElementById("weather-icon");
+const weatherTemperatureEl = document.getElementById("weather-temperature");
+const weatherConditionEl = document.getElementById("weather-condition");
+const weatherWindEl = document.getElementById("weather-wind");
+const weatherRainEl = document.getElementById("weather-rain");
+const weatherPrecipitationEl = document.getElementById("weather-precipitation");
 
 const mountainIcon = L.divIcon({
     className: "",
@@ -64,6 +72,7 @@ let selectedMountain = null;
 let routeLine = null;
 let parkingMarkers = [];
 let selectedParking = null;
+let weatherRequestId = 0;
 
 const hikingRouteBaseStyle = {
     weight: 5,
@@ -169,6 +178,11 @@ function selectMountain(mountain) {
     selectedNameEl.textContent = mountain.name;
     selectedElevationEl.textContent = `${mountain.elevation} m`;
     selectedDistanceEl.textContent = `${mountain.distance_km} km`;
+
+    loadMountainWeather(
+        mountain.latitude,
+        mountain.longitude
+    );
 }
 
 function enableMapScrollZoom() {
@@ -383,6 +397,12 @@ function clearRouteInfo() {
 function clearRouteSummary() {
     routeSummaryCardEl.classList.add("d-none");
     routeSummaryListEl.innerHTML = "";
+    elevationCardEl.classList.add("d-none");
+
+    if (elevationChart) {
+        elevationChart.destroy();
+        elevationChart = null;
+    }
 }
 
 function clearRouteLine() {
@@ -414,6 +434,8 @@ function resetSelectedMountainState() {
     selectedNameEl.textContent = "None";
     selectedElevationEl.textContent = "-";
     selectedDistanceEl.textContent = "-";
+    weatherRequestId += 1;
+    weatherCardEl.classList.add("d-none");
 }
 
 function resetMarker(marker) {
@@ -548,6 +570,77 @@ function renderMountainList(mountains, markerMap) {
 
         mountainlistEl.appendChild(listItem);
     });
+}
+
+function getWeatherDisplay(weatherCode) {
+    const weatherCodes = {
+        0: ["Clear sky", "bi-sun-fill"],
+        1: ["Mostly clear", "bi-sun-fill"],
+        2: ["Partly cloudy", "bi-cloud-sun-fill"],
+        3: ["Overcast", "bi-clouds-fill"],
+        45: ["Fog", "bi-cloud-fog2-fill"],
+        48: ["Rime fog", "bi-cloud-fog2-fill"],
+        51: ["Light drizzle", "bi-cloud-drizzle-fill"],
+        53: ["Drizzle", "bi-cloud-drizzle-fill"],
+        55: ["Heavy drizzle", "bi-cloud-drizzle-fill"],
+        61: ["Light rain", "bi-cloud-rain-fill"],
+        63: ["Rain", "bi-cloud-rain-heavy-fill"],
+        65: ["Heavy rain", "bi-cloud-rain-heavy-fill"],
+        71: ["Light snow", "bi-cloud-snow-fill"],
+        73: ["Snow", "bi-cloud-snow-fill"],
+        75: ["Heavy snow", "bi-cloud-snow-fill"],
+        80: ["Rain showers", "bi-cloud-rain-fill"],
+        81: ["Rain showers", "bi-cloud-rain-heavy-fill"],
+        82: ["Heavy showers", "bi-cloud-rain-heavy-fill"],
+        85: ["Snow showers", "bi-cloud-snow-fill"],
+        86: ["Heavy snow showers", "bi-cloud-snow-fill"],
+        95: ["Thunderstorm", "bi-cloud-lightning-rain-fill"],
+        96: ["Thunderstorm with hail", "bi-cloud-lightning-rain-fill"],
+        99: ["Severe thunderstorm", "bi-cloud-lightning-rain-fill"]
+    };
+
+    return weatherCodes[weatherCode] || ["Current conditions", "bi-cloud-fill"];
+}
+
+function displayWeatherValue(value, suffix, fallback = "Unavailable") {
+    return value === null || value === undefined ? fallback : `${value}${suffix}`;
+}
+
+function loadMountainWeather(latitude, longitude) {
+    const requestId = ++weatherRequestId;
+    const url =
+        `/api/mountain-weather/?latitude=${latitude}` +
+        `&longitude=${longitude}`;
+
+    weatherCardEl.classList.remove("d-none", "is-error");
+    weatherIconEl.innerHTML = '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>';
+    weatherTemperatureEl.textContent = "--°";
+    weatherConditionEl.textContent = "Loading weather…";
+    weatherWindEl.textContent = "-- km/h";
+    weatherRainEl.textContent = "--%";
+    weatherPrecipitationEl.textContent = "-- mm";
+
+    fetchData(url)
+        .then(function(data) {
+            if (requestId !== weatherRequestId) return;
+
+            const [condition, iconClass] = getWeatherDisplay(data.weather_code);
+            weatherIconEl.innerHTML = `<i class="bi ${iconClass}" aria-hidden="true"></i>`;
+            weatherTemperatureEl.textContent = displayWeatherValue(data.temperature, "°C");
+            weatherConditionEl.textContent = condition;
+            weatherWindEl.textContent = displayWeatherValue(data.wind_speed, " km/h");
+            weatherRainEl.textContent = displayWeatherValue(data.precipitation_probability, "%");
+            weatherPrecipitationEl.textContent = displayWeatherValue(data.precipitation, " mm");
+        })
+        .catch(function(error) {
+            if (requestId !== weatherRequestId) return;
+
+            console.error(error);
+            weatherCardEl.classList.add("is-error");
+            weatherIconEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>';
+            weatherTemperatureEl.textContent = "--°";
+            weatherConditionEl.textContent = "Weather unavailable";
+        });
 }
 
 function searchTypedLocation() {
@@ -947,6 +1040,10 @@ function renderRouteSummary(features, sortedDurations) {
 
         const item = document.createElement("div");
         item.classList.add("route-summary-item");
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-controls", "elevation-card");
+        item.setAttribute("aria-label", `View elevation profile for route ${index + 1}`);
 
         item.innerHTML = `
             <div class="route-summary-text">
@@ -962,10 +1059,31 @@ function renderRouteSummary(features, sortedDurations) {
             </div>
             `;
 
-            routeSummaryListEl.appendChild(item);
-            requestAnimationFrame(function() {
-                renderMiniElevationChart(feature, `mini-elevation-chart-${index}`);
+        function openElevationProfile() {
+            routeSummaryListEl.querySelectorAll(".route-summary-item").forEach(function(summaryItem) {
+                summaryItem.classList.remove("is-selected");
+                summaryItem.setAttribute("aria-pressed", "false");
             });
+
+            item.classList.add("is-selected");
+            item.setAttribute("aria-pressed", "true");
+            renderElevationProfile(feature, `Route ${index + 1}`);
+            elevationCardEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        item.setAttribute("aria-pressed", "false");
+        item.addEventListener("click", openElevationProfile);
+        item.addEventListener("keydown", function(event) {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openElevationProfile();
+            }
+        });
+
+        routeSummaryListEl.appendChild(item);
+        requestAnimationFrame(function() {
+            renderMiniElevationChart(feature, `mini-elevation-chart-${index}`);
+        });
     });
 }
 
@@ -991,10 +1109,11 @@ function buildElevationProfileData(coordinates) {
     return profile
 }
 
-function renderElevationProfile(feature) {
+function renderElevationProfile(feature, routeLabel = "Selected hiking route") {
     const profileData = buildElevationProfileData(feature.geometry.coordinates);
 
     elevationCardEl.classList.remove("d-none");
+    elevationProfileTitleEl.textContent = `${routeLabel} elevation`;
 
     if (elevationChart) {
         elevationChart.destroy();

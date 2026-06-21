@@ -90,8 +90,9 @@
             </div>
 
 
-            <div id="elevation-card" class="route-summary-card d-none">
+            <div id="elevation-card" class="route-summary-card elevation-card d-none">
                 <p class="eyebrow">Elevation profile</p>
+                <h2 id="elevation-profile-title">Selected hiking route</h2>
                 <canvas id="elevation-chart"></canvas>
             </div>
 
@@ -116,6 +117,39 @@
                     <div class="stat-card">
                         <span class="stat-label">Distance</span>
                         <strong id="selected-distance">-</strong>
+                    </div>
+                </div>
+
+                <div id="weather-card" class="weather-card d-none" aria-live="polite">
+                    <div class="weather-summary">
+                        <span id="weather-icon" class="weather-icon" aria-hidden="true">
+                            <i class="bi bi-cloud-sun-fill"></i>
+                        </span>
+                        <div>
+                            <p class="weather-kicker">Weather at the summit</p>
+                            <div class="weather-reading">
+                                <strong id="weather-temperature">--°</strong>
+                                <span id="weather-condition">Loading weather…</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="weather-details">
+                        <div class="weather-detail">
+                            <i class="bi bi-wind" aria-hidden="true"></i>
+                            <span>Wind</span>
+                            <strong id="weather-wind">-- km/h</strong>
+                        </div>
+                        <div class="weather-detail">
+                            <i class="bi bi-cloud-rain-fill" aria-hidden="true"></i>
+                            <span>Rain chance</span>
+                            <strong id="weather-rain">--%</strong>
+                        </div>
+                        <div class="weather-detail">
+                            <i class="bi bi-droplet-fill" aria-hidden="true"></i>
+                            <span>Precipitation</span>
+                            <strong id="weather-precipitation">-- mm</strong>
+                        </div>
                     </div>
                 </div>
 

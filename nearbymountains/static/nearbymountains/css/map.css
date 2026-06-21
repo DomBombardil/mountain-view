@@ -352,6 +352,112 @@ h2 {
     font-size: 0.98rem;
 }
 
+.weather-card {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.2fr) minmax(360px, 2fr);
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid #cfe0ed;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f3f9fc 0%, #edf6f2 100%);
+}
+
+.weather-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.weather-icon {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+    color: #fff;
+    background: linear-gradient(135deg, #3b82b5, #65a6c8);
+    box-shadow: 0 9px 20px rgba(41, 111, 151, 0.22);
+}
+
+.weather-icon .bi {
+    font-size: 1.55rem;
+}
+
+.weather-kicker {
+    margin: 0 0 2px;
+    color: #527080;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.weather-reading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.weather-reading strong {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.weather-reading span {
+    color: #445e6b;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.weather-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.weather-detail {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1px 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(150, 183, 199, 0.45);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.weather-detail .bi {
+    grid-row: 1 / 3;
+    color: #397da3;
+    font-size: 1.1rem;
+}
+
+.weather-detail span {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.weather-detail strong {
+    overflow-wrap: anywhere;
+    font-size: 0.92rem;
+}
+
+.weather-card.is-error {
+    border-color: #ead7b9;
+    background: #fff9ed;
+}
+
+.weather-card.is-error .weather-icon {
+    background: var(--amber);
+}
+
 .route-controls {
     display: flex;
     align-items: end;
@@ -473,6 +579,65 @@ h2 {
     background: var(--panel-soft);
 }
 
+.route-summary-item[role="button"] {
+    position: relative;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        border-color 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.route-summary-item[role="button"]::after {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    content: "View profile";
+    color: var(--green-dark);
+    background: #edf8ef;
+    font-size: 0.68rem;
+    font-weight: 800;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.route-summary-item[role="button"]:hover,
+.route-summary-item[role="button"]:focus-visible {
+    border-color: rgba(31, 122, 77, 0.58);
+    outline: none;
+    background: #fbfdf8;
+    box-shadow: 0 10px 24px rgba(23, 35, 27, 0.1);
+    transform: translateY(-2px);
+}
+
+.route-summary-item[role="button"]:hover::after,
+.route-summary-item[role="button"]:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.route-summary-item.is-selected {
+    border-color: var(--green);
+    background: #edf8ef;
+    box-shadow: inset 4px 0 0 var(--green);
+}
+
+.elevation-card {
+    padding: 18px;
+    border: 1px solid rgba(31, 122, 77, 0.25);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: var(--shadow);
+}
+
+.elevation-card h2 {
+    margin-bottom: 14px;
+}
+
 .route-summary-text {
     display: grid;
     gap: 2px;
@@ -563,6 +728,10 @@ h2 {
         display: grid;
     }
 
+    .weather-card {
+        grid-template-columns: 1fr;
+    }
+
     .toolbar-actions,
     .selected-actions {
         width: 100%;
@@ -587,5 +756,17 @@ h2 {
     .toolbar-actions .btn,
     .selected-actions .btn {
         flex-basis: 100%;
+    }
+
+    .weather-details {
+        grid-template-columns: 1fr;
+    }
+
+    .route-summary-item[role="button"]::after {
+        position: static;
+        grid-column: 1 / -1;
+        justify-self: start;
+        opacity: 1;
+        transform: none;
     }
 }

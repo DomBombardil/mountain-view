@@ -23,6 +23,11 @@ const weatherConditionEl = document.getElementById("weather-condition");
 const weatherWindEl = document.getElementById("weather-wind");
 const weatherRainEl = document.getElementById("weather-rain");
 const weatherPrecipitationEl = document.getElementById("weather-precipitation");
+const mountainOverviewCardEl = document.getElementById("mountain-overview-card");
+const overviewParkingCountEl = document.getElementById("overview-parking-count");
+const overviewRouteCountEl = document.getElementById("overview-route-count");
+const overviewBestRouteEl = document.getElementById("overview-best-route");
+const overviewDifficultyEl = document.getElementById("overview-difficulty");
 
 const mountainIcon = L.divIcon({
     className: "",
@@ -179,6 +184,8 @@ function selectMountain(mountain) {
     selectedElevationEl.textContent = `${mountain.elevation} m`;
     selectedDistanceEl.textContent = `${mountain.distance_km} km`;
 
+    resetMountainOverview();
+
     loadMountainWeather(
         mountain.latitude,
         mountain.longitude
@@ -210,6 +217,14 @@ function clearElevationHoverMarker() {
         map.removeLayer(elevationHoverMarker);
         elevationHoverMarker = null;
     }
+}
+
+function resetMountainOverview() {
+    mountainOverviewCardEl.classList.add("d-none");
+    overviewParkingCountEl.textContent = "-";
+    overviewRouteCountEl.textContent = "-";
+    overviewBestRouteEl.textContent = "-";
+    overviewDifficultyEl.textContent = "-";
 }
 
 function renderTrailAccessMarkers(trailPoints){
@@ -436,6 +451,7 @@ function resetSelectedMountainState() {
     selectedDistanceEl.textContent = "-";
     weatherRequestId += 1;
     weatherCardEl.classList.add("d-none");
+    resetMountainOverview();
 }
 
 function resetMarker(marker) {
@@ -807,6 +823,8 @@ function findNearbyParking() {
             }
 
             renderParkingMarkers(data.parkings);
+            mountainOverviewCardEl.classList.remove("d-none");
+            overviewParkingCountEl.textContent = data.parkings.length;
             messageEl.textContent = `Found ${data.parkings.length} nearby parking options.`;
         })
         .catch(function(error) {
@@ -948,6 +966,7 @@ function showHikingRoutesFromParking() {
             });
 
             renderRouteSummary(data.features, sortedDurations);
+            updateMountainOverviewRoutes(data.features, sortedDurations);
 
             routeLine = L.geoJSON(data, {
                 style: function(feature) {
@@ -1325,6 +1344,52 @@ function moveElevationHoverMarker(coord) {
     }
 
     elevationHoverMarker.bindTooltip(`${Math.round(elevation)} m`).openTooltip();
+}
+
+function updateMountainOverviewRoutes(features, sortedDurations) {
+    mountainOverviewCardEl.classList.remove("d-none");
+
+    overviewRouteCountEl.textContent = features.length;
+
+    bestRoute = null;
+
+    features.forEach(function(feature) {
+        const summary = feature.properties.summary;
+        const elevationStats = calculateElevationStats(feature.geometry.coordinates);
+
+        const ascent = elevationStats ? elevationStats.ascent : null;
+        const descent = elevationStats ? elevationStats.descent : null;
+        const durationSeconds = estimateHikingDuration(summary.distance, ascent);
+
+        const intensity = getRouteIntensity(
+            summary.distance,
+            ascent,
+            descent,
+            durationSeconds
+        );
+
+        const color = getHikingRouteColor(feature, sortedDurations);
+
+        if (!bestRoute || durationSeconds < bestRoute.duration) {
+            bestRoute = {
+                intensity: intensity,
+                duration: durationSeconds,
+                color: color
+            };
+        }
+
+    });
+
+    if (bestRoute) {
+        overviewBestRouteEl.innerHTML = `
+        <span class="route-badge route-${bestRoute.color}">
+        ${bestRoute.color} route
+        </span>
+        <span class="overview-route-duration">${formatDuration(bestRoute.duration)}</span>
+        `;
+
+        overviewDifficultyEl.textContent = bestRoute.intensity;
+    }
 }
 
 function fetchData(url) {

@@ -153,6 +153,52 @@
                     </div>
                 </div>
 
+                <section id="mountain-overview-card" class="mountain-overview-card d-none" aria-live="polite">
+                    <div class="overview-header">
+                        <div>
+                            <p class="eyebrow">Mountain overview</p>
+                            <h3>Trip at a glance</h3>
+                        </div>
+                        <span class="overview-icon" aria-hidden="true">
+                            <i class="bi bi-map-fill"></i>
+                        </span>
+                    </div>
+
+                    <div class="overview-stats">
+                        <div class="overview-stat">
+                            <i class="bi bi-p-square-fill overview-stat-icon" aria-hidden="true"></i>
+                            <div>
+                                <span class="overview-label">Nearby parking</span>
+                                <strong id="overview-parking-count">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="overview-stat">
+                            <i class="bi bi-signpost-split-fill overview-stat-icon" aria-hidden="true"></i>
+                            <div>
+                                <span class="overview-label">Routes found</span>
+                                <strong id="overview-route-count">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="overview-stat overview-stat-featured">
+                            <i class="bi bi-compass-fill overview-stat-icon" aria-hidden="true"></i>
+                            <div>
+                                <span class="overview-label">Recommended route</span>
+                                <strong id="overview-best-route">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="overview-stat">
+                            <i class="bi bi-bar-chart-fill overview-stat-icon" aria-hidden="true"></i>
+                            <div>
+                                <span class="overview-label">Route type</span>
+                                <strong id="overview-difficulty">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <div class="route-controls">
                     <div class="selected-actions">
                         <button id="show-route-btn" class="btn btn-success" type="button">

@@ -24,7 +24,17 @@
             <div class="sidebar-copy">
                 Search a place or use your position, then pick a summit to route, park, and hike.
             </div>
-            <ul id="mountain-list" class="mountain-list"></ul>
+            <ul id="mountain-list" class="mountain-list">
+                <li class="mountain-empty-state">
+                    <span class="empty-mountain-visual" aria-hidden="true">
+                        <i class="bi bi-signpost-split-fill"></i>
+                    </span>
+                    <span class="empty-mountain-content">
+                        <strong>Ready to find summits</strong>
+                        <span>Search a location or use your current position to fill this list with nearby peaks.</span>
+                    </span>
+                </li>
+            </ul>
         </aside>
 
         <section class="map-section">
@@ -201,10 +211,6 @@
 
                 <div class="route-controls">
                     <div class="selected-actions">
-                        <button id="show-route-btn" class="btn btn-success" type="button">
-                            <i class="bi bi-signpost-split"></i>
-                            Show Route
-                        </button>
                         <button id="find-parking-btn" class="btn btn-outline-success" type="button">
                             <i class="bi bi-car-front"></i>
                             Find Parking

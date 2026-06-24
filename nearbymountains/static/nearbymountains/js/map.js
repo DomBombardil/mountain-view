@@ -67,7 +67,6 @@ let currentMountains = [];
 
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
-const showRouteBtn = document.getElementById("show-route-btn");
 const searchLocationBtn = document.getElementById("search-location-btn");
 const findParkingBtn = document.getElementById("find-parking-btn");
 
@@ -110,9 +109,6 @@ let trailAccessMarkers = [];
 
 
 // Event listeners.
-showRouteBtn.addEventListener("click", function() {
-    showRouteToSelectedMountain();
-});
 
 searchLocationBtn.addEventListener("click", function() {
     searchTypedLocation();
@@ -262,6 +258,27 @@ function fitMapToResults(latitude, longitude, mountains) {
 
 function clearMountainList() {
     mountainlistEl.innerHTML = "";
+}
+
+function renderMountainListEmptyState(
+    title = "Ready to find summits",
+    message = "Search a location or use your current position to fill this list with nearby peaks."
+) {
+    clearMountainList();
+
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "mountain-empty-state";
+    emptyItem.innerHTML = `
+        <span class="empty-mountain-visual" aria-hidden="true">
+            <i class="bi bi-signpost-split-fill"></i>
+        </span>
+        <span class="empty-mountain-content">
+            <strong>${title}</strong>
+            <span>${message}</span>
+        </span>
+    `;
+
+    mountainlistEl.appendChild(emptyItem);
 }
 
 function setActiveListItem(selectedItem) {
@@ -432,6 +449,7 @@ function clearRoute() {
     clearRouteLine();
     clearRouteSummary();
     clearElevationHoverMarker();
+    resetMountainOverview();
 
     if (currentStartPoint && currentMountains.length > 0) {
         fitMapToResults(
@@ -496,6 +514,11 @@ function loadNearbyMountains(latitude, longitude, radius) {
 
             if (data.mountains.length === 0) {
                 messageEl.textContent = "No mountains found within this radius."
+                currentMountains = [];
+                renderMountainListEmptyState(
+                    "No peaks found",
+                    "Try a wider radius or loosen the elevation filters."
+                );
                 return;
             }
 
@@ -510,7 +533,10 @@ function loadNearbyMountains(latitude, longitude, radius) {
                 })
                     .addTo(map)
                     .bindPopup(
-                        `<strong>${mountain.name}</strong><br>
+                        `<div class="popup-mountain-visual" aria-hidden="true">
+                            <i class="bi bi-triangle-fill"></i>
+                        </div>
+                        <strong>${mountain.name}</strong><br>
                         Elevation: ${mountain.elevation} m<br>
                         Distance: ${mountain.distance_km} km<br>
                         <button type="button" class="find-parking-near-mountain-btn">Find parking nearby</button>`
@@ -1022,14 +1048,6 @@ function showHikingRoutesFromParking() {
 
             const summary = data.features?.[0]?.properties?.summary;
 
-            if (summary) {
-                routeDistanceEl.textContent = 
-                `Hiking distance: ${formatDistance(summary.distance)}`;
-                
-                routeDurationEl.textContent = 
-                `Route duration: ${formatDuration(summary.duration)}`;
-            }
-
             messageEl.textContent = "Hiking route options loaded.";
         })
         .catch(function(error){
@@ -1147,9 +1165,11 @@ function renderElevationProfile(feature, routeLabel = "Selected hiking route") {
                 parsing: false,
                 tension: 0,
                 fill: true,
-                pointRadius: 2,
+                pointRadius: 0,
                 pointHoverRadius: 5,
-                borderWidth: 3,
+                borderWidth: 2,
+                borderCapStyle: "butt",
+                borderJoinStyle: "miter",
                 backgroundColor: "rgba(31, 122, 77, 0.16)",
                 segment: {
                     borderColor: function(context) {

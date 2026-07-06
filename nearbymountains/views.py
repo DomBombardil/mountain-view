@@ -10,6 +10,7 @@ from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 import math
 import os
 import requests
+import json
 from django.views.decorators.http import require_GET
 
 from .models import Mountain
@@ -617,3 +618,43 @@ def mountain_weather_api(request):
         "precipitation_probability": next_precipitation_probability,
         "weather_code": current.get("weather_code"),
     })
+
+@require_GET
+def route_pois_api(request):
+    coordinates_raw = request.GET.get("coordinates", "")
+
+    if not coordinates_raw:
+        return JsonResponse(
+            {"error": "Route coordinates are required"},
+            status=400)
+
+    try: 
+        coordinates = json.loads(coordinates_raw)
+
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"error": "Invalid coordinates"},
+            status=400)
+
+    validated_coordinates = []
+
+    try:
+        for coordinate in coordinates:
+            lng = float(coordinate[0])
+            lat = float(coordinate[1])
+
+            if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+                raise ValueError
+
+            validated_coordinates.append((lng, lat))
+
+    except (TypeError, ValueError, IndexError):
+        return JsonResponse({"error": "Invalid route coordinate"}, 
+                            status=400)
+
+    if not validated_coordinates:
+        return JsonResponse({"error": "No validate coordinates found."},
+                            status=400)
+
+        
+            

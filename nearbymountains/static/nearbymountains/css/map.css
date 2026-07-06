@@ -962,3 +962,28 @@ h2 {
 .popup-mountain-visual .bi {
     font-size: 1.05rem;
 }
+
+.poi-marker {
+    width: 30px;
+    height: 30px;
+}
+
+.poi-marker-hut {
+    background: #8b5a2b;
+}
+
+.poi-marker-viewpoint {
+    background: #7c3aed;
+}
+
+.poi-marker-spring {
+    background: #0891b2;
+}
+
+.poi-marker-water {
+    background: #2563eb;
+}
+
+.poi-marker-default {
+    background: #6b7280;
+}

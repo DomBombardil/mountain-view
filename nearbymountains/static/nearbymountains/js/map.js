@@ -64,6 +64,7 @@ const trailAccessIcon = L.divIcon({
 let elevationChart = null;
 let elevationHoverMarker = null;
 let currentMountains = [];
+let routePoiMarkers = [];
 
 // Buttons
 const clearRouteBtn = document.getElementById("clear-route-btn");
@@ -77,6 +78,7 @@ let routeLine = null;
 let parkingMarkers = [];
 let selectedParking = null;
 let weatherRequestId = 0;
+let routePoisRequestId = 0;
 
 const hikingRouteBaseStyle = {
     weight: 5,
@@ -200,12 +202,24 @@ function clearMountainMarkers() {
     mountainMarkers = [];
 }
 
-function clearTrailAccessMarkers(){
+function clearTrailAccessMarkers() {
     trailAccessMarkers.forEach(function(marker) {
         map.removeLayer(marker);
     });
 
     trailAccessMarkers = [];
+}
+
+function clearRoutePoiMarkers(invalidateRequest = true) {
+    if (invalidateRequest) {
+        routePoisRequestId += 1;
+    }
+
+    routePoiMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    routePoiMarkers = [];
 }
 
 function clearElevationHoverMarker() {
@@ -449,6 +463,7 @@ function clearRoute() {
     clearRouteLine();
     clearRouteSummary();
     clearElevationHoverMarker();
+    clearRoutePoiMarkers();
     resetMountainOverview();
 
     if (currentStartPoint && currentMountains.length > 0) {
@@ -685,6 +700,53 @@ function loadMountainWeather(latitude, longitude) {
         });
 }
 
+function getSampledRouteCoordinates(features, maximumPoints = 16) {
+    const allCoordinates = features.flatMap(function(feature) {
+        return feature?.geometry?.coordinates || [];
+    });
+
+    if (allCoordinates.length <= maximumPoints) {
+        return allCoordinates;
+    }
+
+    return Array.from({ length: maximumPoints }, function(_, index) {
+        const coordinateIndex = Math.round(
+            index * (allCoordinates.length - 1) / (maximumPoints - 1)
+        );
+        return allCoordinates[coordinateIndex];
+    });
+}
+
+function loadRoutePois(features) {
+    const routeFeatures = Array.isArray(features) ? features : [features];
+    const coordinates = getSampledRouteCoordinates(routeFeatures);
+
+    if (coordinates.length === 0) {
+        clearRoutePoiMarkers();
+        return;
+    }
+
+    clearRoutePoiMarkers();
+    const requestId = routePoisRequestId;
+
+    const url =
+        `/api/route-pois/?coordinates=${encodeURIComponent(JSON.stringify(coordinates))}`;
+
+    fetchData(url)
+        .then(function(data) {
+            if (requestId !== routePoisRequestId) return;
+
+            renderRoutePoiMarkers(data.pois);
+            messageEl.textContent = `Found ${data.pois.length} route points of interest.`;
+        })
+        .catch(function(error) {
+            if (requestId !== routePoisRequestId) return;
+
+            console.error(error);
+            messageEl.textContent = "Could not load route points of interest.";
+        });
+}
+
 function searchTypedLocation() {
     const query = locationInput.value.trim();
     const radius = radiusInput.value || 50;
@@ -766,7 +828,10 @@ function showRouteToSelectedMountain() {
             padding: [40, 40]
         });
 
-        const summary = data.features[0].properties.summary;
+        const feature = data.features[0];
+        loadRoutePois(feature);
+
+        const summary = feature.properties.summary;
         
         if (!summary) {
             messageEl.textContent = "Route loaded, but no summary information was found.";
@@ -859,6 +924,25 @@ function findNearbyParking() {
         });
 }
 
+function renderRoutePoiMarkers(pois) {
+    clearRoutePoiMarkers(false);
+
+    pois.forEach(function(poi) {
+        const marker = L.marker([poi.latitude, poi.longitude], {
+            icon: getRoutePoiIcon(poi.type)
+        })
+            .addTo(map)
+            .bindPopup(
+                `<strong>${poi.name}</strong><br>
+                Type: ${poi.type}<br>
+                OSM: ${poi.osm_type} ${poi.osm_id}
+                `
+            );
+
+        routePoiMarkers.push(marker);
+    });
+}
+
 function showRouteToSelectedParking() {
     if (!currentStartPoint) {
         messageEl.textContent = "Please use your location, or search for a location first.";
@@ -898,6 +982,7 @@ function showRouteToSelectedParking() {
             }
 
             messageEl.textContent = "Route to parking loaded.";
+            loadRoutePois(data.features);
         })
         .catch(function(error) {
             console.error(error);
@@ -1046,9 +1131,8 @@ function showHikingRoutesFromParking() {
                 padding: [40, 40]
             });
 
-            const summary = data.features?.[0]?.properties?.summary;
-
             messageEl.textContent = "Hiking route options loaded.";
+            loadRoutePois(data.features);
         })
         .catch(function(error){
             console.error(error);
@@ -1411,6 +1495,36 @@ function updateMountainOverviewRoutes(features, sortedDurations) {
         overviewDifficultyEl.textContent = bestRoute.intensity;
     }
 }
+
+function getRoutePoiIcon(type) {
+    let iconClass = "bi-geo-alt-fill";
+    let markerClass = "poi-marker-default";
+
+    if (type === "alpine_hut" || type === "wilderness_hut" || type === "shelter") {
+        iconClass = "bi-house-fill";
+        markerClass = "poi-marker-hut";
+    } else if (type === "viewpoint") {
+        iconClass = "bi-binoculars-fill";
+        markerClass = "poi-marker-viewpoint";
+    } else if (type === "spring") {
+        iconClass = "bi-droplet-fill";
+        markerClass = "poi-marker-spring";
+    } else if (type === "water") {
+        iconClass = "bi-water";
+        markerClass = "poi-marker-water";
+    }
+
+    return L.divIcon({
+        className: "",
+        html: `<span class="map-marker poi-marker ${markerClass}">
+            <i class="bi ${iconClass}"></i>
+        </span>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+        popupAnchor: [0, -26]
+    });
+}
+
 
 function fetchData(url) {
     return fetch(url)
